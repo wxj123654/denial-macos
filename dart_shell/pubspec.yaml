@@ -22,6 +22,7 @@ dependencies:
   flutter_riverpod: ^3.3.2
   flutter_svg: ^2.3.0
   intl: ^0.20.2
+  macos_ui: ^2.2.2
   path: ^1.9.1
   vector_graphics: ^1.2.2
   denial_wire_protocol:
