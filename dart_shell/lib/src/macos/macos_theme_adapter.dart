@@ -17,8 +17,7 @@ class MacosThemeScope extends ConsumerWidget {
       shellSettingsProvider.select((settings) => settings.appearance),
     );
     final dark =
-        appearance.colorSchemePreference.effectiveBrightness ==
-        Brightness.dark;
+        appearance.colorSchemePreference.effectiveBrightness == Brightness.dark;
     final accent = accentFromColor(appearance.customAccentColor);
     return MacosTheme(
       data: dark

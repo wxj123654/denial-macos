@@ -1,11 +1,6 @@
-import 'package:denial_dart_shell/src/core/shell_windows.dart';
 import 'package:denial_dart_shell/src/macos/macos_dock.dart';
+import 'package:denial_dart_shell/src/macos/macos_dock_model.dart';
 import 'package:denial_dart_shell/src/models/denial_window.dart';
-import 'package:denial_dart_shell/src/models/denial_window_snapshot.dart';
-import 'package:denial_dart_shell/src/platform/denial_bridge.dart';
-import 'package:denial_dart_shell/src/services/lock_state_repository.dart';
-import 'package:denial_dart_shell/src/state/authentication.dart';
-import 'package:denial_dart_shell/src/state/shell_controller.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -14,31 +9,23 @@ import 'package:macos_ui/macos_ui.dart';
 import '../support/mobile_motion_harness.dart';
 
 void main() {
-  testWidgets('running separator appears only with running windows', (
-    tester,
-  ) async {
-    final bridge = _SeparatorBridge();
-    var windows = const <DenialWindow>[];
-    late StateSetter setWindows;
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          denialBridgeProvider.overrideWithValue(bridge),
-          lockStateRepositoryProvider.overrideWithValue(_NoLockFiles()),
-          authenticationProvider.overrideWith(_NoAuthentication.new),
-        ],
-        child: mobileMotionHarness(
-          MacosTheme(
-            data: MacosThemeData.light(),
-            child: ShellWindowsBuilder(
-              builder: (context, _, actions) => StatefulBuilder(
+  testWidgets(
+    'separator divides persistent items from application entries only',
+    (tester) async {
+      var entries = const <MacosDockEntry>[];
+      late StateSetter setEntries;
+      await tester.pumpWidget(
+        ProviderScope(
+          child: mobileMotionHarness(
+            MacosTheme(
+              data: MacosThemeData.light(),
+              child: StatefulBuilder(
                 builder: (context, setState) {
-                  setWindows = setState;
+                  setEntries = setState;
                   return Align(
                     alignment: Alignment.bottomCenter,
                     child: MacosDock(
-                      windows: windows,
-                      actions: actions,
+                      entries: entries,
                       onOpenApplications: () {},
                       onOpenSettings: () {},
                     ),
@@ -46,42 +33,45 @@ void main() {
                 },
               ),
             ),
+            size: const Size(900, 400),
           ),
-          size: const Size(900, 400),
         ),
-      ),
-    );
-    await tester.pumpAndSettle();
+      );
+      await tester.pumpAndSettle();
 
-    expect(find.byKey(macosDockRunningSeparatorKey), findsNothing);
+      expect(find.byKey(macosDockRunningSeparatorKey), findsNothing);
 
-    setWindows(() => windows = <DenialWindow>[motionWindow(1)]);
-    await tester.pumpAndSettle();
+      // A pinned application with no windows still forms an application
+      // entry, so the separator appears.
+      setEntries(
+        () => entries = <MacosDockEntry>[
+          const MacosDockEntry(id: 'pinned.desktop', pinned: true),
+        ],
+      );
+      await tester.pumpAndSettle();
+      expect(find.byKey(macosDockRunningSeparatorKey), findsOneWidget);
 
-    expect(find.byKey(macosDockRunningSeparatorKey), findsOneWidget);
-    expect(tester.takeException(), isNull);
-  });
-}
+      // Running entries keep it too, ordered after the pinned item.
+      setEntries(
+        () => entries = <MacosDockEntry>[
+          const MacosDockEntry(id: 'pinned.desktop', pinned: true),
+          MacosDockEntry(
+            id: 'alpha',
+            windows: <DenialWindow>[motionWindow(1, appId: 'alpha')],
+          ),
+        ],
+      );
+      await tester.pumpAndSettle();
+      expect(find.byKey(macosDockRunningSeparatorKey), findsOneWidget);
+      expect(
+        tester.getTopLeft(find.byKey(macosDockItemKey('pinned.desktop'))).dx,
+        lessThan(tester.getTopLeft(find.byKey(macosDockItemKey('alpha'))).dx),
+      );
 
-class _SeparatorBridge extends DenialBridge {
-  @override
-  void start({
-    required VoidCallback onWindowsChanged,
-    ValueChanged<DenialWindowSnapshot>? onWindowSnapshot,
-    required ValueChanged<int> onWindowActivated,
-  }) {}
-
-  @override
-  Future<DenialWindowSnapshot> listWindows(List<DenialWindow> fallback) async =>
-      const DenialWindowSnapshot(sequence: 1, windows: <DenialWindow>[]);
-}
-
-class _NoAuthentication extends AuthenticationController {
-  @override
-  AuthenticationState build() => const AuthenticationState.initial();
-}
-
-class _NoLockFiles extends LockStateRepository {
-  @override
-  void start({required LockRequestChanged onChanged}) {}
+      setEntries(() => entries = const <MacosDockEntry>[]);
+      await tester.pumpAndSettle();
+      expect(find.byKey(macosDockRunningSeparatorKey), findsNothing);
+      expect(tester.takeException(), isNull);
+    },
+  );
 }

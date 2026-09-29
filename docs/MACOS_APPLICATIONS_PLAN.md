@@ -147,7 +147,16 @@ Acceptance:
 
 ### Phase 2 - Dock application model
 
-Status: planned.
+Status: implemented, except dragging an application from Apps onto the Dock.
+
+Delivered: `macos_dock_model.dart` (grouping by canonical identity, minimized
+tracking, persisted pins at `$XDG_STATE_HOME/denial/macos-dock-pins.json`),
+`macos_dock.dart` (running indicators, active state, context menus, keyboard
+semantics, `DragTarget<DesktopApp>` that calls `onPinApp`).
+
+Open: the Apps surface is a full-screen layer above the Dock and its tiles are
+not `Draggable<DesktopApp>`, so the drop target is unreachable. Pinning is
+currently available from the Dock context menu only.
 
 - Group multiple windows by canonical application identity.
 - Keep persistent items separate from running groups.
@@ -166,7 +175,17 @@ Acceptance:
 
 ### Phase 3 - Finder roles and desktop integration
 
-Status: planned.
+Status: role contract and Settings overrides implemented; Dock integration
+open.
+
+Delivered: `macos_application_roles.dart` (override, then `mimeapps.list`, then
+category, then unresolved), `macos_mime_associations.dart`, persisted
+`applicationRoles` settings, and a Default applications Settings page.
+`launchMacosApplicationRole` and `openMacosDefaultApplicationsSettings` are the
+integration API.
+
+Open: Files and Trash Dock items, opening Home/Applications/Downloads/Trash
+through the file manager role, and desktop file/volume integration.
 
 - Introduce semantic default-application roles for Files, browser, terminal,
   mail, calendar, and media.
@@ -186,7 +205,15 @@ Acceptance:
 
 ### Phase 4 - Broader Spotlight
 
-Status: planned.
+Status: implemented; global keyboard/gesture entry point open.
+
+Delivered: Applications, Files, Actions and Clipboard modes in
+`macos_applications_surface.dart` and `macos_spotlight_sources.dart`, category
+filters, persisted grid/list view, a bounded async file search, clipboard
+gating on the lock state, and a menu-bar Spotlight button.
+
+Open: a configurable global shortcut or gesture; the file search covers only a
+capped set of user directories.
 
 - Add Spotlight modes for applications, files, actions, and clipboard history.
 - Reuse existing Denial clipboard and shortcut/action models.
