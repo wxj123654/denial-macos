@@ -8,6 +8,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../launcher/controllers/home_grid_controller.dart';
 import '../launcher/models/desktop_app.dart';
 import '../localization/denial_localizations.dart';
+import '../macos/macos_application_roles.dart';
+import '../macos/macos_default_applications_page.dart';
 import '../models/display_layout.dart';
 import '../state/display_layout.dart';
 import '../state/cursor_theme.dart';
@@ -426,6 +428,32 @@ class _SettingsPageBody extends ConsumerWidget {
           },
           onReset: controller.resetApplicationEnvironment,
           onResetScope: controller.resetApplicationEnvironmentScope,
+        );
+      case SettingsPageId.defaultApplications:
+        final overrides = ref.watch(
+          shellSettingsProvider.select(
+            (settings) => settings.applicationRoles.overrides,
+          ),
+        );
+        final resolutions = ref.watch(macosRoleResolverProvider);
+        final applications = ref.watch(settingsDesktopApplicationsProvider);
+        return SettingsDefaultApplicationsPage(
+          overrides: overrides,
+          resolutions:
+              resolutions.asData?.value ??
+              const <MacosApplicationRole, MacosRoleResolution>{},
+          applications: applications.asData?.value ?? const <DesktopApp>[],
+          loading:
+              resolutions.isLoading ||
+              applications.isLoading ||
+              ref.watch(
+                shellSettingsSyncStatusProvider.select(
+                  (status) => status.phase == ShellSettingsSyncPhase.loading,
+                ),
+              ),
+          onSelect: (role, desktopFileId) => controller
+              .setApplicationRoleOverride(role.settingsKey, desktopFileId),
+          onReset: controller.resetApplicationRoles,
         );
       case SettingsPageId.layout:
         final settings = ref.watch(

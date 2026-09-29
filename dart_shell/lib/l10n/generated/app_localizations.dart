@@ -956,6 +956,36 @@ abstract class AppLocalizations {
   /// **'Disconnect {deviceName}'**
   String desktopDisconnectDevice(String deviceName);
 
+  /// English UI text for desktopDockKeepInDock.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep in Dock'**
+  String get desktopDockKeepInDock;
+
+  /// English UI text for desktopDockMinimize.
+  ///
+  /// In en, this message translates to:
+  /// **'Minimize'**
+  String get desktopDockMinimize;
+
+  /// English UI text for desktopDockOpen.
+  ///
+  /// In en, this message translates to:
+  /// **'Open'**
+  String get desktopDockOpen;
+
+  /// English UI text for desktopDockQuit.
+  ///
+  /// In en, this message translates to:
+  /// **'Quit'**
+  String get desktopDockQuit;
+
+  /// English UI text for desktopDockRemoveFromDock.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove from Dock'**
+  String get desktopDockRemoveFromDock;
+
   /// English UI text for desktopLoadingAudioOutputDevices.
   ///
   /// In en, this message translates to:
@@ -1417,6 +1447,96 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{weekday} {day} {month}'**
   String longDate(String weekday, int day, String month);
+
+  /// English UI text for macosSpotlightActionLogOut.
+  ///
+  /// In en, this message translates to:
+  /// **'Log out'**
+  String get macosSpotlightActionLogOut;
+
+  /// English UI text for macosSpotlightFileAudio.
+  ///
+  /// In en, this message translates to:
+  /// **'Audio'**
+  String get macosSpotlightFileAudio;
+
+  /// English UI text for macosSpotlightFileDocuments.
+  ///
+  /// In en, this message translates to:
+  /// **'Documents'**
+  String get macosSpotlightFileDocuments;
+
+  /// English UI text for macosSpotlightFileImages.
+  ///
+  /// In en, this message translates to:
+  /// **'Images'**
+  String get macosSpotlightFileImages;
+
+  /// English UI text for macosSpotlightFileOther.
+  ///
+  /// In en, this message translates to:
+  /// **'Other'**
+  String get macosSpotlightFileOther;
+
+  /// English UI text for macosSpotlightFileVideo.
+  ///
+  /// In en, this message translates to:
+  /// **'Video'**
+  String get macosSpotlightFileVideo;
+
+  /// English UI text for macosSpotlightFilterAll.
+  ///
+  /// In en, this message translates to:
+  /// **'All'**
+  String get macosSpotlightFilterAll;
+
+  /// English UI text for macosSpotlightGridView.
+  ///
+  /// In en, this message translates to:
+  /// **'Grid view'**
+  String get macosSpotlightGridView;
+
+  /// English UI text for macosSpotlightListView.
+  ///
+  /// In en, this message translates to:
+  /// **'List view'**
+  String get macosSpotlightListView;
+
+  /// English UI text for macosSpotlightMenuBarLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Open Spotlight search'**
+  String get macosSpotlightMenuBarLabel;
+
+  /// English UI text for macosSpotlightModeActions.
+  ///
+  /// In en, this message translates to:
+  /// **'Actions'**
+  String get macosSpotlightModeActions;
+
+  /// English UI text for macosSpotlightModeClipboard.
+  ///
+  /// In en, this message translates to:
+  /// **'Clipboard'**
+  String get macosSpotlightModeClipboard;
+
+  /// English UI text for macosSpotlightModeFiles.
+  ///
+  /// In en, this message translates to:
+  /// **'Files'**
+  String get macosSpotlightModeFiles;
+
+  /// English UI text for macosSpotlightNoResults.
+  ///
+  /// In en, this message translates to:
+  /// **'No results'**
+  String get macosSpotlightNoResults;
+
+  /// English UI text for macosSpotlightSearch.
+  ///
+  /// In en, this message translates to:
+  /// **'Search'**
+  String get macosSpotlightSearch;
 
   /// Accessible label for the system bar media controls.
   ///
@@ -3359,6 +3479,108 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Dashboard'**
   String get settingsDashboardOverlayTitle;
+
+  /// Dropdown choice leaving a default-application role to freedesktop resolution.
+  ///
+  /// In en, this message translates to:
+  /// **'System default'**
+  String get settingsDefaultApplicationsAutomatic;
+
+  /// Label for the application picker dropdown of a default-application role.
+  ///
+  /// In en, this message translates to:
+  /// **'Opens with'**
+  String get settingsDefaultApplicationsOpensWith;
+
+  /// Dropdown choice for a persisted default-application override whose desktop entry is no longer installed.
+  ///
+  /// In en, this message translates to:
+  /// **'{id} (not installed)'**
+  String settingsDefaultApplicationsNotInstalled(String id);
+
+  /// Label for the web browser default-application role.
+  ///
+  /// In en, this message translates to:
+  /// **'Web browser'**
+  String get settingsDefaultApplicationsRoleBrowser;
+
+  /// Description of the web browser default-application role.
+  ///
+  /// In en, this message translates to:
+  /// **'Opens web links and HTML documents.'**
+  String get settingsDefaultApplicationsRoleBrowserDescription;
+
+  /// Label for the calendar default-application role.
+  ///
+  /// In en, this message translates to:
+  /// **'Calendar'**
+  String get settingsDefaultApplicationsRoleCalendar;
+
+  /// Description of the calendar default-application role.
+  ///
+  /// In en, this message translates to:
+  /// **'Handles calendar links and files.'**
+  String get settingsDefaultApplicationsRoleCalendarDescription;
+
+  /// Label for the file manager default-application role.
+  ///
+  /// In en, this message translates to:
+  /// **'Files'**
+  String get settingsDefaultApplicationsRoleFiles;
+
+  /// Description of the file manager default-application role.
+  ///
+  /// In en, this message translates to:
+  /// **'Opens folders and file locations.'**
+  String get settingsDefaultApplicationsRoleFilesDescription;
+
+  /// Label for the mail default-application role.
+  ///
+  /// In en, this message translates to:
+  /// **'Mail'**
+  String get settingsDefaultApplicationsRoleMail;
+
+  /// Description of the mail default-application role.
+  ///
+  /// In en, this message translates to:
+  /// **'Handles email links.'**
+  String get settingsDefaultApplicationsRoleMailDescription;
+
+  /// Label for the media player default-application role.
+  ///
+  /// In en, this message translates to:
+  /// **'Media'**
+  String get settingsDefaultApplicationsRoleMedia;
+
+  /// Description of the media player default-application role.
+  ///
+  /// In en, this message translates to:
+  /// **'Plays audio and video.'**
+  String get settingsDefaultApplicationsRoleMediaDescription;
+
+  /// Label for the terminal default-application role.
+  ///
+  /// In en, this message translates to:
+  /// **'Terminal'**
+  String get settingsDefaultApplicationsRoleTerminal;
+
+  /// Description of the terminal default-application role.
+  ///
+  /// In en, this message translates to:
+  /// **'Runs command-line sessions.'**
+  String get settingsDefaultApplicationsRoleTerminalDescription;
+
+  /// Title text for the default applications page.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose the application each desktop role opens. Roles left on System default follow the freedesktop defaults.'**
+  String get settingsDefaultApplicationsTitle;
+
+  /// Status shown when a default-application role resolves to nothing.
+  ///
+  /// In en, this message translates to:
+  /// **'No installed application can fill this role yet.'**
+  String get settingsDefaultApplicationsUnavailable;
 
   /// English UI text for settingsDisconnect.
   ///
@@ -5446,6 +5668,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Desktop layout'**
   String get settingsNavigationDesktopLayout;
+
+  /// Settings navigation label for default-application role overrides.
+  ///
+  /// In en, this message translates to:
+  /// **'Default apps'**
+  String get settingsNavigationDefaultApplications;
 
   /// Label for the Developer destination in Settings navigation.
   ///

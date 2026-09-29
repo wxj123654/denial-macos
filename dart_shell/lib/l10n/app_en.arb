@@ -736,6 +736,26 @@
       }
     }
   },
+  "desktopDockKeepInDock": "Keep in Dock",
+  "@desktopDockKeepInDock": {
+    "description": "English UI text for desktopDockKeepInDock."
+  },
+  "desktopDockMinimize": "Minimize",
+  "@desktopDockMinimize": {
+    "description": "English UI text for desktopDockMinimize."
+  },
+  "desktopDockOpen": "Open",
+  "@desktopDockOpen": {
+    "description": "English UI text for desktopDockOpen."
+  },
+  "desktopDockQuit": "Quit",
+  "@desktopDockQuit": {
+    "description": "English UI text for desktopDockQuit."
+  },
+  "desktopDockRemoveFromDock": "Remove from Dock",
+  "@desktopDockRemoveFromDock": {
+    "description": "English UI text for desktopDockRemoveFromDock."
+  },
   "desktopLoadingAudioOutputDevices": "Loading output devices…",
   "@desktopLoadingAudioOutputDevices": {
     "description": "English UI text for desktopLoadingAudioOutputDevices."
@@ -1147,6 +1167,66 @@
         "type": "String"
       }
     }
+  },
+  "macosSpotlightActionLogOut": "Log out",
+  "@macosSpotlightActionLogOut": {
+    "description": "English UI text for macosSpotlightActionLogOut."
+  },
+  "macosSpotlightFileAudio": "Audio",
+  "@macosSpotlightFileAudio": {
+    "description": "English UI text for macosSpotlightFileAudio."
+  },
+  "macosSpotlightFileDocuments": "Documents",
+  "@macosSpotlightFileDocuments": {
+    "description": "English UI text for macosSpotlightFileDocuments."
+  },
+  "macosSpotlightFileImages": "Images",
+  "@macosSpotlightFileImages": {
+    "description": "English UI text for macosSpotlightFileImages."
+  },
+  "macosSpotlightFileOther": "Other",
+  "@macosSpotlightFileOther": {
+    "description": "English UI text for macosSpotlightFileOther."
+  },
+  "macosSpotlightFileVideo": "Video",
+  "@macosSpotlightFileVideo": {
+    "description": "English UI text for macosSpotlightFileVideo."
+  },
+  "macosSpotlightFilterAll": "All",
+  "@macosSpotlightFilterAll": {
+    "description": "English UI text for macosSpotlightFilterAll."
+  },
+  "macosSpotlightGridView": "Grid view",
+  "@macosSpotlightGridView": {
+    "description": "English UI text for macosSpotlightGridView."
+  },
+  "macosSpotlightListView": "List view",
+  "@macosSpotlightListView": {
+    "description": "English UI text for macosSpotlightListView."
+  },
+  "macosSpotlightMenuBarLabel": "Open Spotlight search",
+  "@macosSpotlightMenuBarLabel": {
+    "description": "English UI text for macosSpotlightMenuBarLabel."
+  },
+  "macosSpotlightModeActions": "Actions",
+  "@macosSpotlightModeActions": {
+    "description": "English UI text for macosSpotlightModeActions."
+  },
+  "macosSpotlightModeClipboard": "Clipboard",
+  "@macosSpotlightModeClipboard": {
+    "description": "English UI text for macosSpotlightModeClipboard."
+  },
+  "macosSpotlightModeFiles": "Files",
+  "@macosSpotlightModeFiles": {
+    "description": "English UI text for macosSpotlightModeFiles."
+  },
+  "macosSpotlightNoResults": "No results",
+  "@macosSpotlightNoResults": {
+    "description": "English UI text for macosSpotlightNoResults."
+  },
+  "macosSpotlightSearch": "Search",
+  "@macosSpotlightSearch": {
+    "description": "English UI text for macosSpotlightSearch."
   },
   "mediaControls": "Media controls",
   "@mediaControls": {
@@ -2590,6 +2670,79 @@
   "settingsDashboardOverlayTitle": "Dashboard",
   "@settingsDashboardOverlayTitle": {
     "description": "English UI text for settingsDashboardOverlayTitle."
+  },
+  "settingsDefaultApplicationsAutomatic": "System default",
+  "@settingsDefaultApplicationsAutomatic": {
+    "description": "Dropdown choice leaving a default-application role to freedesktop resolution."
+  },
+  "settingsDefaultApplicationsOpensWith": "Opens with",
+  "@settingsDefaultApplicationsOpensWith": {
+    "description": "Label for the application picker dropdown of a default-application role."
+  },
+  "settingsDefaultApplicationsNotInstalled": "{id} (not installed)",
+  "@settingsDefaultApplicationsNotInstalled": {
+    "description": "Dropdown choice for a persisted default-application override whose desktop entry is no longer installed.",
+    "placeholders": {
+      "id": {
+        "type": "String"
+      }
+    }
+  },
+  "settingsDefaultApplicationsRoleBrowser": "Web browser",
+  "@settingsDefaultApplicationsRoleBrowser": {
+    "description": "Label for the web browser default-application role."
+  },
+  "settingsDefaultApplicationsRoleBrowserDescription": "Opens web links and HTML documents.",
+  "@settingsDefaultApplicationsRoleBrowserDescription": {
+    "description": "Description of the web browser default-application role."
+  },
+  "settingsDefaultApplicationsRoleCalendar": "Calendar",
+  "@settingsDefaultApplicationsRoleCalendar": {
+    "description": "Label for the calendar default-application role."
+  },
+  "settingsDefaultApplicationsRoleCalendarDescription": "Handles calendar links and files.",
+  "@settingsDefaultApplicationsRoleCalendarDescription": {
+    "description": "Description of the calendar default-application role."
+  },
+  "settingsDefaultApplicationsRoleFiles": "Files",
+  "@settingsDefaultApplicationsRoleFiles": {
+    "description": "Label for the file manager default-application role."
+  },
+  "settingsDefaultApplicationsRoleFilesDescription": "Opens folders and file locations.",
+  "@settingsDefaultApplicationsRoleFilesDescription": {
+    "description": "Description of the file manager default-application role."
+  },
+  "settingsDefaultApplicationsRoleMail": "Mail",
+  "@settingsDefaultApplicationsRoleMail": {
+    "description": "Label for the mail default-application role."
+  },
+  "settingsDefaultApplicationsRoleMailDescription": "Handles email links.",
+  "@settingsDefaultApplicationsRoleMailDescription": {
+    "description": "Description of the mail default-application role."
+  },
+  "settingsDefaultApplicationsRoleMedia": "Media",
+  "@settingsDefaultApplicationsRoleMedia": {
+    "description": "Label for the media player default-application role."
+  },
+  "settingsDefaultApplicationsRoleMediaDescription": "Plays audio and video.",
+  "@settingsDefaultApplicationsRoleMediaDescription": {
+    "description": "Description of the media player default-application role."
+  },
+  "settingsDefaultApplicationsRoleTerminal": "Terminal",
+  "@settingsDefaultApplicationsRoleTerminal": {
+    "description": "Label for the terminal default-application role."
+  },
+  "settingsDefaultApplicationsRoleTerminalDescription": "Runs command-line sessions.",
+  "@settingsDefaultApplicationsRoleTerminalDescription": {
+    "description": "Description of the terminal default-application role."
+  },
+  "settingsDefaultApplicationsTitle": "Choose the application each desktop role opens. Roles left on System default follow the freedesktop defaults.",
+  "@settingsDefaultApplicationsTitle": {
+    "description": "Title text for the default applications page."
+  },
+  "settingsDefaultApplicationsUnavailable": "No installed application can fill this role yet.",
+  "@settingsDefaultApplicationsUnavailable": {
+    "description": "Status shown when a default-application role resolves to nothing."
   },
   "settingsDisconnect": "Disconnect",
   "@settingsDisconnect": {
@@ -4106,6 +4259,10 @@
   "settingsNavigationDesktopLayout": "Desktop layout",
   "@settingsNavigationDesktopLayout": {
     "description": "English UI text for settingsNavigationDesktopLayout."
+  },
+  "settingsNavigationDefaultApplications": "Default apps",
+  "@settingsNavigationDefaultApplications": {
+    "description": "Settings navigation label for default-application role overrides."
   },
   "settingsNavigationDeveloper": "Developer",
   "@settingsNavigationDeveloper": {

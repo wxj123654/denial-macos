@@ -602,6 +602,28 @@ class ShellSettingsController extends Notifier<ShellSettings> {
     );
   }
 
+  /// Sets or clears the explicit application for a semantic default role.
+  /// A `null` [desktopFileId] returns the role to freedesktop resolution.
+  void setApplicationRoleOverride(String role, String? desktopFileId) {
+    _update(
+      state.copyWith(
+        applicationRoles: desktopFileId == null
+            ? state.applicationRoles.withoutOverride(role)
+            : state.applicationRoles.withOverride(role, desktopFileId),
+      ),
+    );
+  }
+
+  void removeApplicationRoleOverride(String role) {
+    setApplicationRoleOverride(role, null);
+  }
+
+  void resetApplicationRoles() {
+    _update(
+      state.copyWith(applicationRoles: const ShellApplicationRoleSettings()),
+    );
+  }
+
   void resetAppearance() {
     _update(state.copyWith(appearance: const ShellAppearanceSettings()));
   }
@@ -825,7 +847,7 @@ void _applySettingsPatch(
   for (final entry in patch.entries) {
     final current = document[entry.key];
     final next = entry.value;
-    if (entry.key != 'applicationEnvironment' &&
+    if (!_isReplaceOnlySettingsSection(entry.key) &&
         current is Map<String, dynamic> &&
         next is Map<String, Object?>) {
       _applySettingsPatch(current, next);
@@ -833,6 +855,13 @@ void _applySettingsPatch(
       document[entry.key] = next;
     }
   }
+}
+
+/// Sections emitted by `ShellSettings.differenceFrom` as a complete desired
+/// map: recursively merging them would resurrect overrides that the mutation
+/// intended to delete.
+bool _isReplaceOnlySettingsSection(String key) {
+  return key == 'applicationEnvironment' || key == 'applicationRoles';
 }
 
 Map<String, Object?> _copySettingsPatch(Map<String, Object?> patch) {
@@ -852,7 +881,7 @@ void _removeCommittedSettingsPatch(
   for (final entry in committed.entries) {
     final pendingValue = pending[entry.key];
     final committedValue = entry.value;
-    if (entry.key != 'applicationEnvironment' &&
+    if (!_isReplaceOnlySettingsSection(entry.key) &&
         pendingValue is Map<String, Object?> &&
         committedValue is Map<String, Object?>) {
       _removeCommittedSettingsPatch(pendingValue, committedValue);

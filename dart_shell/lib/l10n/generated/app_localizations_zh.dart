@@ -494,6 +494,21 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String get desktopDockKeepInDock => '保留在程序坞中';
+
+  @override
+  String get desktopDockMinimize => '最小化';
+
+  @override
+  String get desktopDockOpen => '打开';
+
+  @override
+  String get desktopDockQuit => '退出';
+
+  @override
+  String get desktopDockRemoveFromDock => '从程序坞中移除';
+
+  @override
   String get desktopLoadingAudioOutputDevices => '正在加载输出设备…';
 
   @override
@@ -755,6 +770,51 @@ class AppLocalizationsZh extends AppLocalizations {
   String longDate(String weekday, int day, String month) {
     return '$month$day日 $weekday';
   }
+
+  @override
+  String get macosSpotlightActionLogOut => '退出登录';
+
+  @override
+  String get macosSpotlightFileAudio => '音频';
+
+  @override
+  String get macosSpotlightFileDocuments => '文稿';
+
+  @override
+  String get macosSpotlightFileImages => '图片';
+
+  @override
+  String get macosSpotlightFileOther => '其他';
+
+  @override
+  String get macosSpotlightFileVideo => '视频';
+
+  @override
+  String get macosSpotlightFilterAll => '全部';
+
+  @override
+  String get macosSpotlightGridView => '网格视图';
+
+  @override
+  String get macosSpotlightListView => '列表视图';
+
+  @override
+  String get macosSpotlightMenuBarLabel => '打开聚焦搜索';
+
+  @override
+  String get macosSpotlightModeActions => '操作';
+
+  @override
+  String get macosSpotlightModeClipboard => '剪贴板';
+
+  @override
+  String get macosSpotlightModeFiles => '文件';
+
+  @override
+  String get macosSpotlightNoResults => '未找到结果';
+
+  @override
+  String get macosSpotlightSearch => '搜索';
 
   @override
   String get mediaControls => '媒体控件';
@@ -1789,6 +1849,61 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get settingsDashboardOverlayTitle => '仪表板';
+
+  @override
+  String get settingsDefaultApplicationsAutomatic => '系统默认';
+
+  @override
+  String get settingsDefaultApplicationsOpensWith => '打开方式';
+
+  @override
+  String settingsDefaultApplicationsNotInstalled(String id) {
+    return '$id（未安装）';
+  }
+
+  @override
+  String get settingsDefaultApplicationsRoleBrowser => '网页浏览器';
+
+  @override
+  String get settingsDefaultApplicationsRoleBrowserDescription =>
+      '打开网页链接和 HTML 文档。';
+
+  @override
+  String get settingsDefaultApplicationsRoleCalendar => '日历';
+
+  @override
+  String get settingsDefaultApplicationsRoleCalendarDescription => '处理日历链接和文件。';
+
+  @override
+  String get settingsDefaultApplicationsRoleFiles => '文件';
+
+  @override
+  String get settingsDefaultApplicationsRoleFilesDescription => '打开文件夹和文件位置。';
+
+  @override
+  String get settingsDefaultApplicationsRoleMail => '邮件';
+
+  @override
+  String get settingsDefaultApplicationsRoleMailDescription => '处理电子邮件链接。';
+
+  @override
+  String get settingsDefaultApplicationsRoleMedia => '媒体';
+
+  @override
+  String get settingsDefaultApplicationsRoleMediaDescription => '播放音频和视频。';
+
+  @override
+  String get settingsDefaultApplicationsRoleTerminal => '终端';
+
+  @override
+  String get settingsDefaultApplicationsRoleTerminalDescription => '运行命令行会话。';
+
+  @override
+  String get settingsDefaultApplicationsTitle =>
+      '为每个桌面角色选择打开的应用。保持“系统默认”的角色将遵循 freedesktop 默认设置。';
+
+  @override
+  String get settingsDefaultApplicationsUnavailable => '目前没有已安装的应用可以承担此角色。';
 
   @override
   String get settingsDisconnect => '断开连接';
@@ -2908,6 +3023,9 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get settingsNavigationDesktopLayout => '桌面布局';
+
+  @override
+  String get settingsNavigationDefaultApplications => '默认应用';
 
   @override
   String get settingsNavigationDeveloper => '开发者';

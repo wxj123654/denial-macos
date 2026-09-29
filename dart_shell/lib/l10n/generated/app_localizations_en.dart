@@ -517,6 +517,21 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get desktopDockKeepInDock => 'Keep in Dock';
+
+  @override
+  String get desktopDockMinimize => 'Minimize';
+
+  @override
+  String get desktopDockOpen => 'Open';
+
+  @override
+  String get desktopDockQuit => 'Quit';
+
+  @override
+  String get desktopDockRemoveFromDock => 'Remove from Dock';
+
+  @override
   String get desktopLoadingAudioOutputDevices => 'Loading output devices…';
 
   @override
@@ -781,6 +796,51 @@ class AppLocalizationsEn extends AppLocalizations {
   String longDate(String weekday, int day, String month) {
     return '$weekday $day $month';
   }
+
+  @override
+  String get macosSpotlightActionLogOut => 'Log out';
+
+  @override
+  String get macosSpotlightFileAudio => 'Audio';
+
+  @override
+  String get macosSpotlightFileDocuments => 'Documents';
+
+  @override
+  String get macosSpotlightFileImages => 'Images';
+
+  @override
+  String get macosSpotlightFileOther => 'Other';
+
+  @override
+  String get macosSpotlightFileVideo => 'Video';
+
+  @override
+  String get macosSpotlightFilterAll => 'All';
+
+  @override
+  String get macosSpotlightGridView => 'Grid view';
+
+  @override
+  String get macosSpotlightListView => 'List view';
+
+  @override
+  String get macosSpotlightMenuBarLabel => 'Open Spotlight search';
+
+  @override
+  String get macosSpotlightModeActions => 'Actions';
+
+  @override
+  String get macosSpotlightModeClipboard => 'Clipboard';
+
+  @override
+  String get macosSpotlightModeFiles => 'Files';
+
+  @override
+  String get macosSpotlightNoResults => 'No results';
+
+  @override
+  String get macosSpotlightSearch => 'Search';
 
   @override
   String get mediaControls => 'Media controls';
@@ -1857,6 +1917,67 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get settingsDashboardOverlayTitle => 'Dashboard';
+
+  @override
+  String get settingsDefaultApplicationsAutomatic => 'System default';
+
+  @override
+  String get settingsDefaultApplicationsOpensWith => 'Opens with';
+
+  @override
+  String settingsDefaultApplicationsNotInstalled(String id) {
+    return '$id (not installed)';
+  }
+
+  @override
+  String get settingsDefaultApplicationsRoleBrowser => 'Web browser';
+
+  @override
+  String get settingsDefaultApplicationsRoleBrowserDescription =>
+      'Opens web links and HTML documents.';
+
+  @override
+  String get settingsDefaultApplicationsRoleCalendar => 'Calendar';
+
+  @override
+  String get settingsDefaultApplicationsRoleCalendarDescription =>
+      'Handles calendar links and files.';
+
+  @override
+  String get settingsDefaultApplicationsRoleFiles => 'Files';
+
+  @override
+  String get settingsDefaultApplicationsRoleFilesDescription =>
+      'Opens folders and file locations.';
+
+  @override
+  String get settingsDefaultApplicationsRoleMail => 'Mail';
+
+  @override
+  String get settingsDefaultApplicationsRoleMailDescription =>
+      'Handles email links.';
+
+  @override
+  String get settingsDefaultApplicationsRoleMedia => 'Media';
+
+  @override
+  String get settingsDefaultApplicationsRoleMediaDescription =>
+      'Plays audio and video.';
+
+  @override
+  String get settingsDefaultApplicationsRoleTerminal => 'Terminal';
+
+  @override
+  String get settingsDefaultApplicationsRoleTerminalDescription =>
+      'Runs command-line sessions.';
+
+  @override
+  String get settingsDefaultApplicationsTitle =>
+      'Choose the application each desktop role opens. Roles left on System default follow the freedesktop defaults.';
+
+  @override
+  String get settingsDefaultApplicationsUnavailable =>
+      'No installed application can fill this role yet.';
 
   @override
   String get settingsDisconnect => 'Disconnect';
@@ -3051,6 +3172,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get settingsNavigationDesktopLayout => 'Desktop layout';
+
+  @override
+  String get settingsNavigationDefaultApplications => 'Default apps';
 
   @override
   String get settingsNavigationDeveloper => 'Developer';

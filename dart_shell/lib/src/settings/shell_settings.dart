@@ -831,6 +831,107 @@ bool _applicationEnvironmentMapsEqual(
   return true;
 }
 
+const int applicationRoleMaximumIdBytes = 128;
+
+/// A role key names a semantic default-application slot, for example
+/// `fileManager` or `webBrowser`. Keys stay scheme-neutral so shells may
+/// register their own roles in addition to the macOS set.
+bool isValidApplicationRoleId(String role) {
+  if (role.isEmpty ||
+      utf8.encode(role).length > applicationRoleMaximumIdBytes) {
+    return false;
+  }
+  for (var index = 0; index < role.length; index += 1) {
+    final codeUnit = role.codeUnitAt(index);
+    if (!(codeUnit >= 0x30 && codeUnit <= 0x39) &&
+        !(codeUnit >= 0x41 && codeUnit <= 0x5a) &&
+        !(codeUnit >= 0x61 && codeUnit <= 0x7a) &&
+        codeUnit != 0x2d &&
+        codeUnit != 0x2e &&
+        codeUnit != 0x5f) {
+      return false;
+    }
+  }
+  return true;
+}
+
+@immutable
+class ShellApplicationRoleSettings {
+  const ShellApplicationRoleSettings({
+    this.overrides = const <String, String>{},
+  });
+
+  /// Explicit user choice per role, keyed by role ID and holding a
+  /// desktop-file ID. An absent role follows freedesktop defaults.
+  final Map<String, String> overrides;
+
+  String? overrideFor(String role) => overrides[role];
+
+  ShellApplicationRoleSettings withOverride(String role, String desktopFileId) {
+    if (!isValidApplicationRoleId(role)) {
+      throw ArgumentError.value(role, 'role', 'invalid application role ID');
+    }
+    if (!isValidApplicationEnvironmentDesktopFileId(desktopFileId)) {
+      throw ArgumentError.value(
+        desktopFileId,
+        'desktopFileId',
+        'invalid desktop-file ID',
+      );
+    }
+    return ShellApplicationRoleSettings(
+      overrides: Map<String, String>.unmodifiable(<String, String>{
+        ...overrides,
+        role: desktopFileId,
+      }),
+    );
+  }
+
+  ShellApplicationRoleSettings withoutOverride(String role) {
+    if (!overrides.containsKey(role)) {
+      return this;
+    }
+    return ShellApplicationRoleSettings(
+      overrides: Map<String, String>.unmodifiable(
+        <String, String>{...overrides}..remove(role),
+      ),
+    );
+  }
+
+  factory ShellApplicationRoleSettings.fromJson(Object? value) {
+    final overrides = <String, String>{};
+    for (final entry in _map(value).entries) {
+      final desktopFileId = entry.value;
+      if (isValidApplicationRoleId(entry.key) &&
+          desktopFileId is String &&
+          isValidApplicationEnvironmentDesktopFileId(desktopFileId)) {
+        overrides[entry.key] = desktopFileId;
+      }
+    }
+    return ShellApplicationRoleSettings(
+      overrides: Map<String, String>.unmodifiable(overrides),
+    );
+  }
+
+  Map<String, Object?> toJson() => <String, Object?>{
+    for (final entry in overrides.entries) entry.key: entry.value,
+  };
+
+  @override
+  bool operator ==(Object other) {
+    return other is ShellApplicationRoleSettings &&
+        mapEquals(other.overrides, overrides);
+  }
+
+  @override
+  int get hashCode {
+    final entries = overrides.entries.toList(growable: false)
+      ..sort((first, second) => first.key.compareTo(second.key));
+    return Object.hashAll(
+      entries.map((entry) => Object.hash(entry.key, entry.value)),
+    );
+  }
+}
+
 @immutable
 class ShellSettings {
   const ShellSettings({
@@ -842,6 +943,7 @@ class ShellSettings {
     this.lockScreen = const ShellLockScreenSettings(),
     this.power = const ShellPowerSettings(),
     this.applicationEnvironment = const ShellApplicationEnvironmentSettings(),
+    this.applicationRoles = const ShellApplicationRoleSettings(),
   });
 
   // Blur levels are additive in schema 9. Keep emitting the derived legacy
@@ -856,6 +958,7 @@ class ShellSettings {
   final ShellLockScreenSettings lockScreen;
   final ShellPowerSettings power;
   final ShellApplicationEnvironmentSettings applicationEnvironment;
+  final ShellApplicationRoleSettings applicationRoles;
 
   ShellSettings copyWith({
     ShellLocalizationSettings? localization,
@@ -866,6 +969,7 @@ class ShellSettings {
     ShellLockScreenSettings? lockScreen,
     ShellPowerSettings? power,
     ShellApplicationEnvironmentSettings? applicationEnvironment,
+    ShellApplicationRoleSettings? applicationRoles,
   }) {
     return ShellSettings(
       localization: localization ?? this.localization,
@@ -877,6 +981,7 @@ class ShellSettings {
       power: power ?? this.power,
       applicationEnvironment:
           applicationEnvironment ?? this.applicationEnvironment,
+      applicationRoles: applicationRoles ?? this.applicationRoles,
     );
   }
 
@@ -1109,6 +1214,12 @@ class ShellSettings {
       patch['applicationEnvironment'] = applicationEnvironment.toJson();
     }
 
+    if (applicationRoles != previous.applicationRoles) {
+      // Same replacement semantics as applicationEnvironment: the emitted
+      // map is the complete desired override set for every role.
+      patch['applicationRoles'] = applicationRoles.toJson();
+    }
+
     return patch;
   }
 
@@ -1184,6 +1295,7 @@ class ShellSettings {
         'suspendMode': power.suspendMode.name,
       },
       'applicationEnvironment': applicationEnvironment.toJson(),
+      'applicationRoles': applicationRoles.toJson(),
     };
   }
 
@@ -1536,6 +1648,9 @@ class ShellSettings {
       applicationEnvironment: ShellApplicationEnvironmentSettings.fromJson(
         json['applicationEnvironment'],
       ),
+      applicationRoles: ShellApplicationRoleSettings.fromJson(
+        json['applicationRoles'],
+      ),
     );
   }
 
@@ -1549,7 +1664,8 @@ class ShellSettings {
         other.animations == animations &&
         other.lockScreen == lockScreen &&
         other.power == power &&
-        other.applicationEnvironment == applicationEnvironment;
+        other.applicationEnvironment == applicationEnvironment &&
+        other.applicationRoles == applicationRoles;
   }
 
   @override
@@ -1562,6 +1678,7 @@ class ShellSettings {
     lockScreen,
     power,
     applicationEnvironment,
+    applicationRoles,
   );
 }
 
