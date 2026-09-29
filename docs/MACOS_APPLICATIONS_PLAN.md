@@ -208,6 +208,34 @@ surface only when they provide integration unavailable from an installed Linux
 application. Browser, terminal, file manager, mail, messages, media stores, and
 Apple cloud applications remain out of scope.
 
+## Local development installation
+
+The macOS shell is tested through the separate **Denial (development)** display
+manager session. It must not replace or modify the packaged Denial session,
+`/usr/bin/deniald`, or `/usr/lib/denial/flutter`.
+
+Build the current checkout and refresh its development-session entry with:
+
+```sh
+tools/denial-pc build
+tools/denial-pc install-session
+tools/denial-pc doctor
+```
+
+The development entry is rendered from `dev/denial.desktop.in` and appears in
+SDDM as **Denial (development)**. It launches `tools/denial-pc session`, which
+uses the checkout's release Flutter bundle and Settings bundle plus the
+revision-matched compositor binaries below the Denial PC build cache. The
+packaged **Denial** entry remains independently installed and available.
+
+Installing or rebuilding does not activate the new compositor inside the
+current graphical session. At an explicit test checkpoint, the user must log
+out themselves, select **Denial (development)** in SDDM, and log back in.
+Automation must never log out, stop, or restart the user's local graphical
+session. Once already running that development session, `tools/denial-pc
+refresh` may rebuild and safely request an in-process Flutter bundle refresh;
+it must not be aimed at the packaged session.
+
 ## Verification and diagnosis
 
 Every phase uses the following loop:
