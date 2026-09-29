@@ -3,6 +3,7 @@ import 'package:flutter/widgets.dart';
 import 'package:macos_ui/macos_ui.dart';
 
 import '../input/shell_interaction_registry.dart';
+import '../widgets/window_surface_tree.dart';
 
 /// macOS window chrome around a Denial surface: a title bar with traffic
 /// lights (left) and a centered window title above the client texture.
@@ -14,6 +15,12 @@ class MacosWindowFrame extends StatelessWidget {
     required this.contentSize,
     this.focused = true,
     this.showFrame = true,
+    this.titleHeight = titleBarHeight,
+    this.presentationScale,
+    this.pixelGridOrigin = Offset.zero,
+    this.onMoveStart,
+    this.onMoveUpdate,
+    this.onMoveEnd,
   });
 
   final DenialWindow window;
@@ -21,6 +28,14 @@ class MacosWindowFrame extends StatelessWidget {
   final Size contentSize;
   final bool focused;
   final bool showFrame;
+  final double titleHeight;
+  final double? presentationScale;
+  final Offset pixelGridOrigin;
+
+  /// Title-bar drag callbacks; [onMoveUpdate] receives the pointer delta.
+  final VoidCallback? onMoveStart;
+  final ValueChanged<Offset>? onMoveUpdate;
+  final VoidCallback? onMoveEnd;
 
   static const double titleBarHeight = 28;
 
@@ -47,9 +62,20 @@ class MacosWindowFrame extends StatelessWidget {
               debugLabel: 'macos-window-title-${window.objectId}',
               child: GestureDetector(
                 onTap: () => actions.focus(window),
+                onPanStart: onMoveStart == null
+                    ? null
+                    : (_) {
+                        actions.focus(window);
+                        onMoveStart!();
+                      },
+                onPanUpdate: onMoveUpdate == null
+                    ? null
+                    : (details) => onMoveUpdate!(details.delta),
+                onPanEnd: onMoveEnd == null ? null : (_) => onMoveEnd!(),
+                onPanCancel: onMoveEnd,
                 child: Container(
                   width: contentSize.width,
-                  height: titleBarHeight,
+                  height: titleHeight,
                   decoration: BoxDecoration(
                     color: dark
                         ? (focused
@@ -101,12 +127,17 @@ class MacosWindowFrame extends StatelessWidget {
             ),
           SizedBox.fromSize(
             size: contentSize,
-            child: WindowContentRect(
-              window: window,
-              active: focused,
+            child: ClipRRect(
               borderRadius: showFrame
                   ? const BorderRadius.vertical(bottom: Radius.circular(10))
                   : BorderRadius.zero,
+              child: window.isLocalFlutter
+                  ? WindowContentRect(window: window, active: focused)
+                  : WindowSurfaceTree(
+                      window: window,
+                      presentationScale: presentationScale,
+                      pixelGridOrigin: pixelGridOrigin,
+                    ),
             ),
           ),
         ],

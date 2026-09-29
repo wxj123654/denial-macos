@@ -5,6 +5,7 @@ import 'package:denial_dart_shell/src/launcher/controllers/home_grid_controller.
 import 'package:denial_dart_shell/src/launcher/models/home_grid_item.dart';
 import 'package:denial_dart_shell/src/macos/macos_applications_surface.dart';
 import 'package:denial_dart_shell/src/macos/macos_desktop_scene.dart';
+import 'package:denial_dart_shell/src/macos/macos_dock_model.dart';
 import 'package:denial_dart_shell/src/models/display_layout.dart';
 import 'package:denial_dart_shell/src/platform/denial_bridge.dart';
 import 'package:denial_dart_shell/src/settings/settings_controller.dart';
@@ -37,6 +38,7 @@ void main() {
           applicationRecentsProvider.overrideWith(
             () => _SceneRecents(const <String>[]),
           ),
+          macosDockPinsStoreProvider.overrideWithValue(_SceneDockPins()),
         ],
         child: mobileMotionHarness(
           const MacosDesktopScene(),
@@ -119,4 +121,12 @@ class _SceneRecents extends ApplicationRecentsController {
 
   @override
   List<String> build() => entries;
+}
+
+class _SceneDockPins implements MacosDockPinsStore {
+  @override
+  Future<List<String>> readPins() async => const <String>[];
+
+  @override
+  Future<void> writePins(List<String> pins) async {}
 }

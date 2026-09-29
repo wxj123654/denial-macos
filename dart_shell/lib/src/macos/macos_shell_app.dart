@@ -1,8 +1,8 @@
 import 'package:denial_dart_shell/denial.dart';
 import 'package:flutter/widgets.dart';
 
-import 'macos_desktop_scene.dart';
 import 'macos_mobile_scene.dart';
+import 'macos_scene_mode.dart';
 
 /// Product shell assembled from Denial's reusable host and macOS-styled scenes.
 ///
@@ -16,7 +16,7 @@ class MacosShellApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return const DenialShell(
       mobile: DenialShellScene(content: MacosMobileScene()),
-      desktop: DenialShellScene(content: MacosDesktopScene()),
+      desktop: DenialShellScene(content: MacosSceneSwitcher()),
     );
   }
 }
