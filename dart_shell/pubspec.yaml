@@ -37,6 +37,10 @@ dev_dependencies:
 flutter:
   generate: true
   uses-material-design: true
+  shaders:
+    - shaders/glass_refract.frag
+    - shaders/glass_liquid.frag
+    - shaders/glass_metaball.frag
   assets:
     - assets/cursors/bibata_modern_ice/alternate/
     - assets/cursors/bibata_modern_ice/busy/

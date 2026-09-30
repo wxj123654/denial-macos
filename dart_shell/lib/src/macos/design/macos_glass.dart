@@ -1,7 +1,9 @@
+import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:flutter/widgets.dart';
 
+import 'liquid_glass.dart';
 import 'macos_design_tokens.dart';
 
 enum MacosGlassVariant {
@@ -16,16 +18,29 @@ enum MacosGlassVariant {
 /// fully frosted, opaque material. Frosting also removes the live blur, which
 /// is the expensive part.
 class MacosGlassScope extends InheritedWidget {
-  const MacosGlassScope({super.key, required this.frost, required super.child});
+  const MacosGlassScope({
+    super.key,
+    required this.frost,
+    this.refractive = false,
+    required super.child,
+  });
 
   final double frost;
+  final bool refractive;
 
   static double of(BuildContext context) =>
       context.dependOnInheritedWidgetOfExactType<MacosGlassScope>()?.frost ??
       0.5;
 
+  static bool refractiveOf(BuildContext context) =>
+      context
+          .dependOnInheritedWidgetOfExactType<MacosGlassScope>()
+          ?.refractive ??
+      false;
+
   @override
-  bool updateShouldNotify(MacosGlassScope old) => frost != old.frost;
+  bool updateShouldNotify(MacosGlassScope old) =>
+      frost != old.frost || refractive != old.refractive;
 }
 
 class _InsideGlass extends InheritedWidget {
@@ -38,9 +53,9 @@ class _InsideGlass extends InheritedWidget {
   bool updateShouldNotify(_InsideGlass old) => false;
 }
 
-/// Portable approximation of Liquid Glass: backdrop blur, adaptive tint, a specular rim lit from the top-left, and a soft
-/// contact shadow. The engine's refractive glass can replace this body later
-/// without changing call sites.
+/// Liquid Glass uses the refractive shader when enabled by [MacosGlassScope].
+/// Backdrop blur, adaptive tint and a specular rim remain the portable fallback.
+/// Both paths preserve the same geometry and soft contact shadow.
 class MacosGlass extends StatelessWidget {
   const MacosGlass({
     super.key,
@@ -51,6 +66,7 @@ class MacosGlass extends StatelessWidget {
     this.blurSigma = 22,
     this.elevated = true,
     this.padding,
+    this.refractive,
   });
 
   final Widget child;
@@ -62,6 +78,7 @@ class MacosGlass extends StatelessWidget {
   final double blurSigma;
   final bool elevated;
   final EdgeInsetsGeometry? padding;
+  final bool? refractive;
 
   @override
   Widget build(BuildContext context) {
@@ -120,6 +137,27 @@ class MacosGlass extends StatelessWidget {
             )
           : surface,
     );
+    final useRefraction = refractive ?? MacosGlassScope.refractiveOf(context);
+    if (useRefraction &&
+        frost < 0.999 &&
+        borderRadius == BorderRadius.circular(borderRadius.topLeft.x)) {
+      final materialFrost = variant == MacosGlassVariant.regular
+          ? frost
+          : frost * 0.5;
+      final glassAlpha = math.max(
+        tint?.a ?? 0,
+        ui.lerpDouble(fill.a * 0.25, 0.95, materialFrost * materialFrost)!,
+      );
+      surface = LiquidGlassLens(
+        radius: borderRadius.topLeft.x,
+        optics: LiquidGlassOptics(
+          tint: base.withValues(alpha: glassAlpha),
+          blurSigma: nested ? 0 : math.min(blurSigma, 12) * materialFrost,
+        ),
+        fallback: surface,
+        child: content,
+      );
+    }
     return _InsideGlass(
       child: DecoratedBox(
         decoration: BoxDecoration(

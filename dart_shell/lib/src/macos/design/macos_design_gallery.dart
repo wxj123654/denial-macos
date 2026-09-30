@@ -20,12 +20,16 @@ class MacosDesignGallery extends StatefulWidget {
     super.key,
     this.initialDark = false,
     this.onExit,
+    this.onGlassLab,
   });
 
   final bool initialDark;
 
   /// When set, the toolbar shows a button that returns to the desktop.
   final VoidCallback? onExit;
+
+  /// When set, the toolbar shows a button that opens the glass shader lab.
+  final VoidCallback? onGlassLab;
 
   @override
   State<MacosDesignGallery> createState() => _MacosDesignGalleryState();
@@ -53,6 +57,7 @@ class _MacosDesignGalleryState extends State<MacosDesignGallery> {
       palette: palette,
       child: MacosGlassScope(
         frost: _frost,
+        refractive: true,
         child: DefaultTextStyle(
         style: MacosType.body.copyWith(color: palette.label),
         child: Stack(
@@ -191,6 +196,16 @@ class _MacosDesignGalleryState extends State<MacosDesignGallery> {
         const SizedBox(width: MacosSpacing.md),
         Text(_sidebarItems[_sidebar].$2, style: MacosType.title2),
         const Spacer(),
+        if (widget.onGlassLab != null) ...[
+          MacosButton(
+            label: 'Glass lab',
+            glass: true,
+            icon: Icons.blur_on,
+            height: 36,
+            onPressed: widget.onGlassLab,
+          ),
+          const SizedBox(width: MacosSpacing.sm),
+        ],
         if (widget.onExit != null) ...[
           MacosButton(
             label: 'Desktop',

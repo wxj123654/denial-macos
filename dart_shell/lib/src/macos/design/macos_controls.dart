@@ -97,7 +97,8 @@ class _MacosButtonState extends State<MacosButton> {
         behavior: HitTestBehavior.opaque,
         onTapDown: (d) {
           final size = context.size;
-          final inside = size != null && (Offset.zero & size).contains(d.localPosition);
+          final inside =
+              size != null && (Offset.zero & size).contains(d.localPosition);
           final hoverOk = d.kind != PointerDeviceKind.mouse || _hovered;
           if (inside && hoverOk) setState(() => _pressed = true);
         },
@@ -218,19 +219,27 @@ class _SliderThumb extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return const SizedBox(
       width: 26,
       height: 18,
-      decoration: const BoxDecoration(
-        color: Color(0xfffdfdfd),
-        borderRadius: _capsule,
-        boxShadow: <BoxShadow>[
-          BoxShadow(
-            color: Color(0x40000000),
-            blurRadius: 6,
-            offset: Offset(0, 2),
-          ),
-        ],
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          borderRadius: _capsule,
+          boxShadow: <BoxShadow>[
+            BoxShadow(
+              color: Color(0x40000000),
+              blurRadius: 6,
+              offset: Offset(0, 2),
+            ),
+          ],
+        ),
+        child: MacosGlass(
+          borderRadius: _capsule,
+          variant: MacosGlassVariant.clear,
+          blurSigma: 0,
+          elevated: false,
+          child: SizedBox.expand(),
+        ),
       ),
     );
   }

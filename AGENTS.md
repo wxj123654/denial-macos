@@ -260,3 +260,14 @@ Install or remove the local display-manager entry with:
 tools/denial-pc install-session
 tools/denial-pc remove-session
 ```
+
+For `ImageFilter.shader`, the first `vec2` uniform is engine-owned input
+texture size, not widget size. Keep lens geometry in separate uniforms.
+Impeller's `FlutterFragCoord()` comes from filter-input geometry, not
+`gl_FragCoord`. Denial's negative physical render views reflect the output
+canvas's Y axis before capturing that input. Account for this output reflection
+in lens geometry and sampling separately from GLES texture-origin correction.
+The liquid-glass contract tests also run with
+`tools/denial-pc flutter-test --enable-impeller test/macos/liquid_glass_test.dart`.
+After editing an included `.glsl`, touch its entry-point `.frag` files before
+verification and bundle assembly to avoid reusing stale compiled shaders.

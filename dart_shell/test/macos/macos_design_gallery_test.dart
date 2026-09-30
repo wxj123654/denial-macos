@@ -1,19 +1,28 @@
+import 'dart:ui' as ui;
+
 import 'package:denial_dart_shell/macos_design_gallery.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 Widget _harness({bool dark = false}) => ProviderScope(
   child: Directionality(
-  textDirection: TextDirection.ltr,
-  child: MediaQuery(
-    data: const MediaQueryData(size: Size(1280, 800)),
-    child: MacosDesignGallery(initialDark: dark),
-  ),
+    textDirection: TextDirection.ltr,
+    child: MediaQuery(
+      data: const MediaQueryData(size: Size(1280, 800)),
+      child: MacosDesignGallery(initialDark: dark),
+    ),
   ),
 );
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+  setUpAll(() async {
+    await LiquidGlassPrograms.ensureLoaded();
+    expect(LiquidGlassPrograms.failure, isNull);
+  });
+
   test('concentric radius never goes negative', () {
     expect(MacosRadii.concentric(26, 8), 18);
     expect(MacosRadii.concentric(10, 16), 0);
@@ -36,6 +45,119 @@ void main() {
     await tester.tap(find.text('Light'));
     await tester.pump(const Duration(milliseconds: 500));
     expect(find.text('Dark'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('gallery glass and slider thumbs use the refractive material', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1280, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await tester.runAsync(LiquidGlassPrograms.ensureLoaded);
+    await tester.pumpWidget(_harness());
+    expect(find.byType(LiquidGlassLens), findsWidgets);
+    for (final slider in find.byType(MacosSlider).evaluate()) {
+      expect(
+        find.descendant(
+          of: find.byWidget(slider.widget),
+          matching: find.byType(LiquidGlassLens),
+        ),
+        findsOneWidget,
+      );
+    }
+    await tester.tap(find.text('Materials'));
+    await tester.pump();
+    for (final label in ['Regular', 'Clear', 'Tinted']) {
+      expect(
+        find.ancestor(
+          of: find.text(label),
+          matching: find.byType(LiquidGlassLens),
+        ),
+        findsWidgets,
+      );
+    }
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('gallery foreground stays outside glass filter layers', (
+    tester,
+  ) async {
+    if (!ui.ImageFilter.isShaderFilterSupported) return;
+    tester.view.physicalSize = const Size(1280, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await tester.runAsync(LiquidGlassPrograms.ensureLoaded);
+    await tester.pumpWidget(_harness());
+    final layers = tester.layers.whereType<BackdropFilterLayer>().toList();
+    expect(layers.length, greaterThanOrEqualTo(5));
+    for (final layer in layers) {
+      expect(layer.firstChild, isNull);
+    }
+    final scene = (tester.layers.first as ContainerLayer).buildScene(
+      ui.SceneBuilder(),
+    );
+    scene.dispose();
+    for (final layer in layers) {
+      expect(layer.filter, isNotNull);
+    }
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('sliding the new glass thumb still updates its value', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1280, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await tester.runAsync(LiquidGlassPrograms.ensureLoaded);
+    await tester.pumpWidget(_harness());
+    final slider = find.byType(MacosSlider).at(1);
+    final rect = tester.getRect(slider);
+    await tester.tapAt(Offset(rect.right - 2, rect.center.dy));
+    await tester.pump();
+    expect(tester.widget<MacosSlider>(slider).value, 1);
+    await tester.dragFrom(
+      Offset(rect.left + 14, rect.center.dy),
+      const Offset(60, 0),
+    );
+    await tester.pump();
+    expect(
+      tester.widget<MacosSlider>(slider).value,
+      inInclusiveRange(0.1, 0.3),
+    );
+    expect(
+      find.descendant(of: slider, matching: find.byType(LiquidGlassLens)),
+      findsOneWidget,
+    );
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('fully frosted material disables refractive filters', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      Directionality(
+        textDirection: TextDirection.ltr,
+        child: MacosPaletteScope(
+          palette: MacosPalette.light,
+          child: const MacosGlassScope(
+            frost: 1,
+            refractive: true,
+            child: Center(
+              child: SizedBox(
+                width: 120,
+                height: 40,
+                child: MacosGlass(child: Text('frosted')),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    expect(find.byType(LiquidGlassLens), findsNothing);
+    expect(tester.layers.whereType<BackdropFilterLayer>(), isEmpty);
+    expect(find.text('frosted'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
