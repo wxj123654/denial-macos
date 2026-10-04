@@ -271,3 +271,14 @@ The liquid-glass contract tests also run with
 `tools/denial-pc flutter-test --enable-impeller test/macos/liquid_glass_test.dart`.
 After editing an included `.glsl`, touch its entry-point `.frag` files before
 verification and bundle assembly to avoid reusing stale compiled shaders.
+
+Glass shader shapes must stay off their layer's coverage boundary. Under
+Denial's GLES negative-render-view pipeline the composited backdrop result
+can sit a couple of device pixels off the layer clip; a shader shape that
+coincides with the widget bounds gets its top corners flattened by that
+slack, while shapes inset from the boundary render correctly (confirmed
+visually on 3840x2160 @ DPR 1.75, Impeller OpenGLES). Keep a small logical
+inset — about 3 px, capped at a sixth of the short side — between every
+glass SDF shape and its coverage boundary; see `_blendButtonShapeSlack` in
+`dart_shell/lib/src/macos/design/liquid_glass_lab.dart` and the refractive
+path in `dart_shell/lib/src/macos/design/macos_glass.dart`.

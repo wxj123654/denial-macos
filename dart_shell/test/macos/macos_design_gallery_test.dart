@@ -56,12 +56,12 @@ void main() {
     addTearDown(tester.view.reset);
     await tester.runAsync(LiquidGlassPrograms.ensureLoaded);
     await tester.pumpWidget(_harness());
-    expect(find.byType(LiquidGlassLens), findsWidgets);
+    expect(find.byType(LiquidGlassBlend), findsWidgets);
     for (final slider in find.byType(MacosSlider).evaluate()) {
       expect(
         find.descendant(
           of: find.byWidget(slider.widget),
-          matching: find.byType(LiquidGlassLens),
+          matching: find.byType(LiquidGlassBlend),
         ),
         findsOneWidget,
       );
@@ -72,7 +72,7 @@ void main() {
       expect(
         find.ancestor(
           of: find.text(label),
-          matching: find.byType(LiquidGlassLens),
+          matching: find.byType(LiquidGlassBlend),
         ),
         findsWidgets,
       );
@@ -127,7 +127,7 @@ void main() {
       inInclusiveRange(0.1, 0.3),
     );
     expect(
-      find.descendant(of: slider, matching: find.byType(LiquidGlassLens)),
+      find.descendant(of: slider, matching: find.byType(LiquidGlassBlend)),
       findsOneWidget,
     );
     expect(tester.takeException(), isNull);
@@ -155,7 +155,7 @@ void main() {
         ),
       ),
     );
-    expect(find.byType(LiquidGlassLens), findsNothing);
+    expect(find.byType(LiquidGlassBlend), findsNothing);
     expect(tester.layers.whereType<BackdropFilterLayer>(), isEmpty);
     expect(find.text('frosted'), findsOneWidget);
     expect(tester.takeException(), isNull);

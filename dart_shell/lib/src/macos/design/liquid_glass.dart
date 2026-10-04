@@ -304,6 +304,11 @@ class _LiquidGlassLensState extends State<LiquidGlassLens> {
 
 /// Up to four glass shapes that fuse like liquid when they approach each
 /// other. [shapes] are in this widget's local logical coordinates.
+///
+/// Keep shapes off this widget's coverage boundary: the GLES
+/// negative-render-view pipeline can place the composited backdrop a couple
+/// of device pixels off the clip, which flattens corners that touch the
+/// boundary.
 class LiquidGlassBlend extends StatefulWidget {
   const LiquidGlassBlend({
     super.key,
@@ -312,6 +317,7 @@ class LiquidGlassBlend extends StatefulWidget {
     this.roundness = 1,
     this.optics = const LiquidGlassOptics(),
     this.child,
+    this.fallback,
   }) : assert(shapes.length <= 4);
 
   final List<Rect> shapes;
@@ -323,6 +329,10 @@ class LiquidGlassBlend extends StatefulWidget {
   final double roundness;
   final LiquidGlassOptics optics;
   final Widget? child;
+
+  /// Shown while the shader loads, if it failed to load, or when the engine
+  /// has no shader image filters (Skia).
+  final Widget? fallback;
 
   @override
   State<LiquidGlassBlend> createState() => _LiquidGlassBlendState();
@@ -352,11 +362,13 @@ class _LiquidGlassBlendState extends State<LiquidGlassBlend> {
   @override
   Widget build(BuildContext context) {
     final program = LiquidGlassPrograms.metaball;
-    if (program == null) return widget.child ?? const SizedBox.shrink();
+    if (program == null) {
+      return widget.fallback ?? widget.child ?? const SizedBox.shrink();
+    }
     final shader = _shader ??= program.fragmentShader();
     final scale = MediaQuery.devicePixelRatioOf(context);
     if (!_filterSupported(shader)) {
-      return widget.child ?? const SizedBox.shrink();
+      return widget.fallback ?? widget.child ?? const SizedBox.shrink();
     }
     return ClipRect(
       child: _GlassBackdrop(
