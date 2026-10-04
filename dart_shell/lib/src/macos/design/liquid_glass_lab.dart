@@ -252,6 +252,10 @@ class _BlendGlassButton extends StatefulWidget {
 }
 
 class _BlendGlassButtonState extends State<_BlendGlassButton> {
+  /// Logical pixels between the button capsule and the widget bounds; see
+  /// the shape comment in [build].
+  static const _blendButtonShapeSlack = 3.0;
+
   bool _pressed = false;
 
   @override
@@ -269,13 +273,24 @@ class _BlendGlassButtonState extends State<_BlendGlassButton> {
           duration: MacosMotion.quick,
           curve: MacosMotion.spring,
           child: LayoutBuilder(
-            builder: (context, constraints) => LiquidGlassBlend(
-              optics: widget.optics,
-              shapes: [Offset.zero & constraints.biggest],
-              blend: 0,
-              roundness: 1,
-              child: Center(child: widget.child),
-            ),
+            builder: (context, constraints) {
+              // Keep the capsule off the layer's coverage boundary. The
+              // shader field can sit a couple of device pixels off the clip
+              // under the GLES negative-render-view pipeline; a shape that
+              // touches the boundary gets its corners flattened by that
+              // slack, while an inset capsule (like the floating fusion
+              // blobs) stays correct.
+              final shape = (Offset.zero & constraints.biggest).deflate(
+                _blendButtonShapeSlack,
+              );
+              return LiquidGlassBlend(
+                optics: widget.optics,
+                shapes: [shape],
+                blend: 0,
+                roundness: 1,
+                child: Center(child: widget.child),
+              );
+            },
           ),
         ),
       ),

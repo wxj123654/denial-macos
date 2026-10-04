@@ -814,7 +814,9 @@ void main() {
     );
     expect(surface, findsOneWidget);
     final glass = tester.widget<LiquidGlassBlend>(surface);
-    expect(glass.shapes, [const Rect.fromLTWH(0, 0, 300, 96)]);
+    // The capsule sits off the coverage boundary so GLES pipeline slack
+    // cannot flatten its corners.
+    expect(glass.shapes, [const Rect.fromLTWH(3, 3, 294, 90)]);
     expect(glass.optics, const LiquidGlassOptics());
     final before = tester.getTopLeft(button);
     await tester.tapAt(before + const Offset(16, 48));
