@@ -103,13 +103,13 @@ Set `DENIAL_PC_DEPENDENCY_ROOT`, `DENIAL_PC_BUILD_ROOT`, or
 
 The current development generation couples:
 
-- Flutter `3.44.7`;
+- Flutter `3.47.6`;
 - the exact Denial Flutter and Skia fork commits in
   `prebuilt/flutter-engine/SOURCE_LOCK.json`;
 - upstream Flutter compatibility revision
-  `84fc5cbb223bc12f83d65b647ff8a56caf779ffd`;
-- Dart `3.12.2`;
-- engine artifact revision `69c8c61792f04cc809dfef0c910414fb9afc06cd`;
+  `5fc346839b5d0eef006ed8404392afb4dfae428d`;
+- Dart `3.12.2` (`04bcd1036cdc799ac6564988f159ee454d42c822`);
+- engine artifact revision `692136cb6582dbfc5af3fb33c2515a069f2f66d0`;
 - the generated Rust embedder ABI in
   `compositor/flutter-engine/src/sys.rs`.
 
@@ -121,8 +121,8 @@ forks. The repository does not reconstruct them from patches.
 Local engine development has exactly two editable roots:
 
 ```text
-/mnt/exty/denial-flutter-fork-3.44.7
-/mnt/exty/denial-skia-fork-3.44.7
+/mnt/exty/denial-flutter-fork-3.47.6
+/mnt/exty/denial-skia-fork-3.47.6
 ```
 
 The Flutter tree's `engine/src/flutter/third_party/skia` resolves to the
