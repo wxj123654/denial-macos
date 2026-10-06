@@ -75,16 +75,21 @@ restart without hanging when the screen is already off. Keep this condition in
 mind for future authorized restarts; its reliability still needs repeated
 confirmation.
 
-## User-owned visual validation and test triggers
+## Agent-assisted visual diagnosis and user-owned acceptance
 
-The user performs all visual validation. Never capture or inspect screenshots,
-judge rendered output, launch applications for visual inspection, or create UI
-state for visual QA on the local machine or any remote Denial host.
+Agents may capture and inspect screenshots on the local machine and remote
+Denial hosts, analyze rendered output, and use screenshots to reproduce,
+diagnose, and verify rendering fixes. Report the observed problems, evidence,
+and verification limits to the user. Final visual acceptance belongs to the
+user; do not claim user acceptance based on agent screenshot analysis alone.
 
-Never trigger a notification or any other visible or interactive test event
-unless the user explicitly requests that specific trigger. Permission to
-implement, test, deploy, restart a remote session, or verify process health
-does not include permission to trigger UI events.
+Screenshot permission does not by itself authorize launching visible
+applications or creating interactive UI state for visual QA. Never trigger a
+notification or any other visible or interactive test event unless the user
+explicitly requests that specific trigger. Permission to implement, test,
+deploy, restart a remote session, capture screenshots, or verify process health
+does not include permission to trigger unrelated UI events. The graphical
+session-control restrictions above remain unchanged.
 
 The shared Denial lab Limine entries on these hosts hash staged kernel and
 initramfs URI payloads with **BLAKE2b-512**, not SHA-512. Generate each URI
