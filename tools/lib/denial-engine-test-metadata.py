@@ -85,8 +85,8 @@ def validate_sources(lock_path, flutter, skia):
     if set(lock) != {"schema_version", "flutter", "skia", "depot_tools"} or lock["schema_version"] != 1:
         fail("unsupported candidate source-lock schema")
     repositories = {
-        "flutter": "https://github.com/denialwm/flutter.git",
-        "skia": "https://github.com/denialwm/skia.git",
+        "flutter": "https://github.com/wxj123654/flutter.git",
+        "skia": "https://github.com/wxj123654/skia.git",
         "depot_tools": "https://chromium.googlesource.com/chromium/tools/depot_tools.git",
     }
     for name, repository in repositories.items():

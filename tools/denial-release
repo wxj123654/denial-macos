@@ -614,12 +614,12 @@ source_audit() {
 
   if jq -e '
       .schema_version == 1
-      and .flutter.repository == "https://github.com/denialwm/flutter.git"
-      and .flutter.branch == "denial/3.44.7-r1"
+      and .flutter.repository == "https://github.com/wxj123654/flutter.git"
+      and .flutter.branch == "denial/3.47.6-r1"
       and (.flutter.revision | test("^[0-9a-f]{40}$"))
       and (.flutter.upstream_revision | test("^[0-9a-f]{40}$"))
-      and .skia.repository == "https://github.com/denialwm/skia.git"
-      and .skia.branch == "denial/3.44.7-r1"
+      and .skia.repository == "https://github.com/wxj123654/skia.git"
+      and .skia.branch == "denial/3.47.6-r1"
       and (.skia.revision | test("^[0-9a-f]{40}$"))
       and (.skia.upstream_revision | test("^[0-9a-f]{40}$"))
       and .depot_tools.repository ==

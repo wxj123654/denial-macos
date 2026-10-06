@@ -325,11 +325,11 @@ validate_source_lock() {
   [[ -f "$SOURCE_LOCK" ]] || fail "missing source lock: $SOURCE_LOCK"
   jq -e '
     .schema_version == 1
-    and .flutter.repository == "https://github.com/denialwm/flutter.git"
+    and .flutter.repository == "https://github.com/wxj123654/flutter.git"
     and (.flutter.branch | test("^denial/[0-9]+\\.[0-9]+\\.[0-9]+-r[1-9][0-9]*$"))
     and (.flutter.revision | test("^[0-9a-f]{40}$"))
     and (.flutter.upstream_revision | test("^[0-9a-f]{40}$"))
-    and .skia.repository == "https://github.com/denialwm/skia.git"
+    and .skia.repository == "https://github.com/wxj123654/skia.git"
     and .skia.branch == .flutter.branch
     and (.skia.revision | test("^[0-9a-f]{40}$"))
     and (.skia.upstream_revision | test("^[0-9a-f]{40}$"))

@@ -83,13 +83,13 @@ class SourceGateTests(unittest.TestCase):
         self.lock = {
             "schema_version": 1,
             "flutter": {
-                "repository": "https://github.com/denialwm/flutter.git",
+                "repository": "https://github.com/wxj123654/flutter.git",
                 "branch": "denial/new-stable",
                 "revision": flutter_revision,
                 "upstream_revision": flutter_upstream,
             },
             "skia": {
-                "repository": "https://github.com/denialwm/skia.git",
+                "repository": "https://github.com/wxj123654/skia.git",
                 "branch": "denial/new-stable",
                 "revision": skia_revision,
                 "upstream_revision": skia_upstream,

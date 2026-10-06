@@ -1,13 +1,13 @@
 {
   "schema_version": 1,
   "flutter": {
-    "repository": "https://github.com/denialwm/flutter.git",
+    "repository": "https://github.com/wxj123654/flutter.git",
     "branch": "denial/3.47.6-r1",
     "revision": "b29758b7708751cf7fd09556cd29a800def978ef",
     "upstream_revision": "5fc346839b5d0eef006ed8404392afb4dfae428d"
   },
   "skia": {
-    "repository": "https://github.com/denialwm/skia.git",
+    "repository": "https://github.com/wxj123654/skia.git",
     "branch": "denial/3.47.6-r1",
     "revision": "0b41f940531a4fa4380f794275e7fe1b0119afa0",
     "upstream_revision": "8df24be66531469e576a806749a0202ae26b8d08"
