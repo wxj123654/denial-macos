@@ -5,6 +5,8 @@ SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="$(cd -- "$SCRIPT_DIR/.." && pwd)"
 # shellcheck source=lib/denial-architecture.sh
 source "$SCRIPT_DIR/lib/denial-architecture.sh"
+# shellcheck source=lib/denial-flutter-test-gles.sh
+source "$SCRIPT_DIR/lib/denial-flutter-test-gles.sh"
 denial_arch_configure
 SOURCE_LOCK="$ROOT/prebuilt/flutter-engine/SOURCE_LOCK.json"
 CACHE_SCHEMA='2'
@@ -110,7 +112,9 @@ Environment:
   DENIAL_FLUTTER_ENGINE_DEDICATED_BUILDER
                                       Set to 1 to use every CPU by default.
   DENIAL_FLUTTER_TEST_COMMAND          Prepared lock-matched Flutter launcher
-                                      used to run shell tests.
+                                       used to run shell tests.
+  DENIAL_FLUTTER_TEST_BACKEND          vulkan (default) or opengles. OpenGLES
+                                       enables Impeller with a headless tester.
 
 The source lock contains exact Denial Flutter and Skia fork commits. Artifact
 hits skip checkout synchronization, GN, Ninja, and linking. On a source or
@@ -322,11 +326,11 @@ validate_source_lock() {
   jq -e '
     .schema_version == 1
     and .flutter.repository == "https://github.com/denialwm/flutter.git"
-    and .flutter.branch == "denial/3.44.7-r1"
+    and (.flutter.branch | test("^denial/[0-9]+\\.[0-9]+\\.[0-9]+-r[1-9][0-9]*$"))
     and (.flutter.revision | test("^[0-9a-f]{40}$"))
     and (.flutter.upstream_revision | test("^[0-9a-f]{40}$"))
     and .skia.repository == "https://github.com/denialwm/skia.git"
-    and .skia.branch == "denial/3.44.7-r1"
+    and .skia.branch == .flutter.branch
     and (.skia.revision | test("^[0-9a-f]{40}$"))
     and (.skia.upstream_revision | test("^[0-9a-f]{40}$"))
     and .depot_tools.repository ==
@@ -970,6 +974,19 @@ run_flutter_tests() {
   local output
   local source_state
   local target='denial_host_debug'
+  local host_target="$target"
+  local backend="${DENIAL_FLUTTER_TEST_BACKEND:-vulkan}"
+  local -a test_targets=(dart_sdk flutter_patched_sdk/platform_strong.dill flutter_tester)
+  local -a backend_args=()
+  case "$backend" in
+    vulkan) ;;
+    opengles)
+      test_targets+=(flutter_tester_opengles impellerc libEGL.so libGLESv2.so
+                     libvk_swiftshader.so vk_swiftshader_icd.json)
+      backend_args=(--enable-impeller)
+      ;;
+    *) fail 'DENIAL_FLUTTER_TEST_BACKEND must be vulkan or opengles' ;;
+  esac
 
   install -d -m 0700 "$CACHE_ROOT" "$ARTIFACT_ROOT" "$STATE_ROOT" "$BUILD_ROOT"
   exec 9>"$CACHE_ROOT/build.lock"
@@ -1012,9 +1029,7 @@ run_flutter_tests() {
     /usr/bin/ninja \
       -C "$output" \
       -j "$BUILD_JOBS" \
-      dart_sdk \
-      flutter_patched_sdk/platform_strong.dill \
-      flutter_tester
+      "${test_targets[@]}"
   [[ -x "$output/dart-sdk/bin/dart" ]] \
     || fail "lock-matched debug Dart SDK is missing: $output"
   [[ -f "$output/flutter_patched_sdk/platform_strong.dill" ]] \
@@ -1022,14 +1037,21 @@ run_flutter_tests() {
   [[ -x "$output/flutter_tester" ]] \
     || fail "lock-matched flutter_tester is missing: $output/flutter_tester"
 
-  printf 'Running Dart shell tests with lock-matched flutter_tester\n'
+  if [[ "$backend" == opengles ]]; then
+    host_target="$(denial_prepare_flutter_gles_test_host \
+      "$output" "$ROOT/dart_shell/shaders" \
+      "$engine_source_root/flutter/impeller/compiler/shader_lib" \
+      "$CHECKOUT/packages/flutter/lib/src")" \
+      || fail 'could not prepare headless GLES test assets'
+  fi
+  printf 'Running Dart shell tests with lock-matched flutter_tester (backend=%s)\n' "$backend"
   (
     cd "$ROOT/dart_shell"
     "$flutter_test_command" test \
       --local-engine-src-path="$local_engine_src_path" \
       --local-engine="$target" \
-      --local-engine-host="$target" \
-      "$@"
+      --local-engine-host="$host_target" \
+      "${backend_args[@]}" "$@"
   )
 }
 

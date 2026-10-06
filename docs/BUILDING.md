@@ -54,6 +54,22 @@ tools/denial-pc flutter-test
 tools/denial-pc flutter-test test/settings/settings_application_test.dart
 ```
 
+Liquid-glass sampling must also be checked on the desktop's OpenGLES backend,
+not only the default offscreen Vulkan tester. This command builds/reuses the
+lock-matched headless ANGLE/SwiftShader tester and GLES shader stages, without
+starting a window or changing a running Denial session:
+
+```sh
+DENIAL_FLUTTER_TEST_BACKEND=opengles tools/denial-pc flutter-test \
+  test/macos/liquid_glass_test.dart \
+  test/macos/liquid_glass_blend_rendering_test.dart \
+  test/macos/macos_design_gallery_test.dart
+```
+
+The GLES-only material/coverage tests explicitly skip on other backends.
+Vulkan tests remain useful but are not a substitute for this sampling check.
+Like all `tools/denial-pc` commands, run these commands outside the sandbox.
+
 The release compositor is written to:
 
 ```text

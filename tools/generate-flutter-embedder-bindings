@@ -3,11 +3,13 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="$(cd -- "$SCRIPT_DIR/.." && pwd)"
-ENGINE_RELEASE="$ROOT/prebuilt/flutter-engine/linux-x64-release"
+# Cross-version experiments keep their coupled metadata separate until the
+# candidate has been accepted and the normal source lock is advanced.
+ENGINE_RELEASE="${DENIAL_FLUTTER_ABI_METADATA_DIR:-$ROOT/prebuilt/flutter-engine/linux-x64-release}"
 ENGINE_REVISION_FILE="$ENGINE_RELEASE/ENGINE_REVISION"
 FLUTTER_REVISION_FILE="$ENGINE_RELEASE/FLUTTER_REVISION"
 GENERATOR_MANIFEST="$ROOT/tools/flutter-embedder-bindings/Cargo.toml"
-OUTPUT="$ROOT/compositor/flutter-engine/src/sys.rs"
+OUTPUT="${DENIAL_FLUTTER_ABI_OUTPUT:-$ROOT/compositor/flutter-engine/src/sys.rs}"
 MODE="${1:-generate}"
 
 if [[ "$MODE" != "generate" && "$MODE" != "--check" ]]; then

@@ -474,6 +474,7 @@ fn engine_command_line(project: &EngineProject) -> Vec<CString> {
     if project.renderer_backend.uses_impeller() {
         for argument in [
             "--enable-impeller=true",
+            "--impeller-use-sdfs",
             "--denial-gl-fbo-zero-is-no-target",
         ] {
             arguments.push(CString::new(argument).expect("static argv has no NUL"));

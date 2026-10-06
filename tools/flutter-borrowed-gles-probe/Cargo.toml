@@ -1,0 +1,7 @@
+[package]
+name = "denial-borrowed-glass-probe"
+version = "0.0.0"
+edition = "2024"
+
+[dependencies]
+denial-flutter-engine = { path = "../../compositor/flutter-engine" }

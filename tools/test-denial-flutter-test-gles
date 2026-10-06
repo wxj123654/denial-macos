@@ -1,0 +1,144 @@
+#!/usr/bin/env python3
+"""Headless regression tests for the isolated GLES Flutter test host."""
+
+import json
+import os
+import subprocess
+import tempfile
+import unittest
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent.parent
+HELPER = ROOT / "tools/lib/denial-flutter-test-gles.sh"
+
+
+class GlesTestHostTests(unittest.TestCase):
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory(prefix="denial-gles-test.")
+        self.root = Path(self.temp.name)
+        # Spaces exercise shell quoting in the generated launcher.
+        self.output = self.root / "engine output"
+        self.output.mkdir()
+        self.shaders = self.root / "shader inputs"
+        self.shaders.mkdir()
+        self.include = self.root / "shader includes"
+        self.include.mkdir()
+        (self.shaders / "glass.frag").write_text("shader source\n")
+        self.compiler_log = self.root / "compiler.json"
+        self.runner_log = self.root / "runner.json"
+        self.executable(
+            "impellerc",
+            "#!/usr/bin/env python3\n"
+            "import json, os, pathlib, sys\n"
+            "pathlib.Path(os.environ['COMPILER_LOG']).write_text(json.dumps(sys.argv[1:]))\n"
+            "out = next(a[5:] for a in sys.argv[1:] if a.startswith('--sl='))\n"
+            "pathlib.Path(out).write_bytes(b'GLES shader fixture')\n",
+        )
+        self.executable(
+            "flutter_tester_opengles",
+            "#!/usr/bin/env python3\n"
+            "import json, os, pathlib, sys\n"
+            "pathlib.Path(os.environ['RUNNER_LOG']).write_text(json.dumps({\n"
+            " 'args': sys.argv[1:],\n"
+            " 'backend': os.environ.get('DENIAL_FLUTTER_TEST_BACKEND'),\n"
+            " 'display': os.environ.get('DISPLAY'),\n"
+            " 'wayland': os.environ.get('WAYLAND_DISPLAY'),\n"
+            "}))\n",
+        )
+        (self.output / "flutter_tester").write_bytes(b"original normal tester")
+        self.env = {
+            **os.environ,
+            "COMPILER_LOG": str(self.compiler_log),
+            "RUNNER_LOG": str(self.runner_log),
+        }
+
+    def tearDown(self):
+        self.temp.cleanup()
+
+    def executable(self, name, text):
+        path = self.output / name
+        path.write_text(text)
+        path.chmod(0o755)
+
+    def prepare(self):
+        result = subprocess.run(
+            [
+                "bash", "-c",
+                'source "$1"; denial_prepare_flutter_gles_test_host "$2" "$3" "$4"',
+                "gles-test", str(HELPER), str(self.output), str(self.shaders), str(self.include),
+            ],
+            env=self.env,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        return self.output.parent / result.stdout.strip()
+
+    def test_preparation_keeps_normal_tester_and_selects_separate_host(self):
+        host = self.prepare()
+        self.assertEqual(host.name, "engine output_gles_test")
+        self.assertEqual((self.output / "flutter_tester").read_bytes(), b"original normal tester")
+        self.assertFalse((host / "flutter_tester").is_symlink())
+        self.assertEqual((host / "impellerc").resolve(), self.output / "impellerc")
+
+    def test_compile_includes_all_backends_and_shader_include_roots(self):
+        self.prepare()
+        args = json.loads(self.compiler_log.read_text())
+        for flag in ("--sksl", "--runtime-stage-gles", "--runtime-stage-gles3", "--runtime-stage-vulkan"):
+            self.assertIn(flag, args)
+        self.assertIn(f"--include={self.include}", args)
+        self.assertIn(f"--include={self.shaders}", args)
+
+    def test_launcher_installs_assets_and_enforces_headless_gles(self):
+        host = self.prepare()
+        assets = self.root / "unit test assets"
+        result = subprocess.run(
+            [str(host / "flutter_tester"), f"--flutter-assets-dir={assets}", "--enable-impeller", "test.dill"],
+            env={**self.env, "DISPLAY": ":1", "WAYLAND_DISPLAY": "wayland-0"},
+            capture_output=True,
+            text=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual((assets / "shaders/glass.frag").read_bytes(), b"GLES shader fixture")
+        data = json.loads(self.runner_log.read_text())
+        self.assertEqual(data["args"][0], "--impeller-backend=opengles")
+        self.assertEqual(data["args"][-1], "test.dill")
+        self.assertEqual(data["backend"], "opengles")
+        self.assertIsNone(data["display"])
+        self.assertIsNone(data["wayland"])
+        self.assertEqual(list((assets / "shaders").glob(".gles-shader.*")), [])
+
+    def test_repeated_preparation_reuses_host_without_touching_normal_tester(self):
+        first = self.prepare()
+        second = self.prepare()
+        self.assertEqual(first, second)
+        self.assertEqual((self.output / "flutter_tester").read_bytes(), b"original normal tester")
+
+    def test_framework_material_shaders_are_prepared_for_gles(self):
+        framework = self.root / "framework shaders"
+        material = framework / "material/shaders"
+        material.mkdir(parents=True)
+        (material / "ink_sparkle.frag").write_text("framework shader\n")
+        result = subprocess.run(
+            ["bash", "-c", 'source "$1"; denial_prepare_flutter_gles_test_host "$2" "$3" "$4" "$5"',
+             "gles-test", str(HELPER), str(self.output), str(self.shaders), str(self.include), str(framework)],
+            env=self.env, capture_output=True, text=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        host = self.output.parent / result.stdout.strip()
+        self.assertEqual((host / "runtime-shaders/ink_sparkle.frag").read_bytes(), b"GLES shader fixture")
+        self.assertEqual((host / "runtime-shaders/glass.frag").read_bytes(), b"GLES shader fixture")
+
+    def test_missing_gles_tester_is_rejected(self):
+        (self.output / "flutter_tester_opengles").unlink()
+        result = subprocess.run(
+            ["bash", "-c", 'source "$1"; denial_prepare_flutter_gles_test_host "$2" "$3" "$4"',
+             "gles-test", str(HELPER), str(self.output), str(self.shaders), str(self.include)],
+            env=self.env, capture_output=True, text=True,
+        )
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("missing", result.stderr)
+
+
+if __name__ == "__main__":
+    unittest.main()

@@ -1,0 +1,106 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Real negative render-view / borrowed-FBO regression, with no window, desktop
+# connection, screenshot, or image artifact. Pixel reads are numeric assertions
+# against a synthetic background, never a capture of the user's session.
+ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
+source "$ROOT/tools/lib/denial-architecture.sh"
+denial_arch_configure
+
+fail() { printf 'borrowed-gles-test: %s\n' "$*" >&2; exit 1; }
+usage() {
+    printf '%s\n' 'Usage: tools/test-denial-flutter-borrowed-gles --source-lock LOCK --engine-output RELEASE_OUT'
+    printf '%s\n' 'Requires both canonical source-root overrides and a clean, exact release build.'
+}
+lock='' output=''
+while (($#)); do
+    case "$1" in
+        --source-lock) [[ $# -ge 2 && -z "$lock" ]] || { usage; exit 2; }; lock="$2"; shift 2 ;;
+        --engine-output) [[ $# -ge 2 && -z "$output" ]] || { usage; exit 2; }; output="$2"; shift 2 ;;
+        --help|-h) usage; exit 0 ;;
+        *) usage; exit 2 ;;
+    esac
+done
+[[ -n "$lock" && -n "$output" ]] || { usage; exit 2; }
+[[ "$DENIAL_ARCH" == x86_64 ]] || fail 'the surfaceless borrowed-GLES probe currently targets x86_64'
+[[ -n "${DENIAL_FLUTTER_SOURCE_ROOT:-}" && -n "${DENIAL_SKIA_SOURCE_ROOT:-}" ]] \
+    || fail 'set DENIAL_FLUTTER_SOURCE_ROOT and DENIAL_SKIA_SOURCE_ROOT together'
+lock="$(realpath -e -- "$lock")"
+output="$(realpath -e -- "$output")"
+[[ "$output" == */out/* ]] || fail 'engine output must be a GN out/TARGET directory'
+[[ -x "$output/gen_snapshot" && -x "$output/impellerc" \
+    && -f "$output/libflutter_engine.so" && -f "$output/args.gn" ]] \
+    || fail 'prepare a matching release engine, AOT compiler, and shader compiler first'
+
+work="$(mktemp -d "${TMPDIR:-/tmp}/denial-borrowed-gles.XXXXXX")"
+trap 'rm -rf --one-file-system -- "$work"' EXIT
+helper="$ROOT/tools/lib/denial-engine-test-metadata.py"
+python3 "$helper" validate-sources "$lock" "$DENIAL_FLUTTER_SOURCE_ROOT" "$DENIAL_SKIA_SOURCE_ROOT" > "$work/inputs.json"
+python3 "$helper" validate-bindings "$DENIAL_FLUTTER_SOURCE_ROOT" "$work/inputs.json" "$ROOT/compositor/flutter-engine/src/sys.rs" >/dev/null
+for pair in 'flutter engine_version' 'skia skia_version'; do
+    read -r source argument <<< "$pair"
+    revision="$(jq -er ".sources.$source.revision" "$work/inputs.json")"
+    grep -Fqx "$argument = \"$revision\"" "$output/args.gn" || fail "GN $argument differs from candidate lock"
+done
+grep -Fqx 'flutter_runtime_mode = "release"' "$output/args.gn" || fail 'use a release engine'
+dart_revision="$(jq -er '.dart_revision' "$work/inputs.json")"
+grep -Fqx "dart_version = \"$dart_revision\"" "$output/args.gn" || fail 'GN Dart revision differs from candidate lock'
+export FLUTTER_PREBUILT_ENGINE_VERSION="$(jq -er '.engine_artifact_revision' "$work/inputs.json")"
+flutter="$DENIAL_FLUTTER_SOURCE_ROOT/bin/flutter"
+engine_args=(--local-engine-src-path="${output%/out/*}" --local-engine="${output##*/}" --local-engine-host="${output##*/}" --suppress-analytics)
+"$flutter" "${engine_args[@]}" --version --machine > "$work/version.json"
+jq -e --arg revision "$(jq -er '.sources.flutter.revision' "$work/inputs.json")" '.frameworkRevision == $revision' "$work/version.json" >/dev/null \
+    || fail 'Flutter tool framework differs from candidate lock'
+[[ "$("$DENIAL_FLUTTER_SOURCE_ROOT/bin/cache/dart-sdk/bin/dart" --version 2>&1)" \
+    == "$("$output/dart-sdk/bin/dart" --version 2>&1)" ]] || fail 'Flutter-tool and local-engine Dart SDK differ'
+
+mkdir -p "$work/workspace/dart_shell" "$work/workspace/protocol/generated/dart"
+rsync -aL --exclude=build --exclude=.dart_tool "$ROOT/dart_shell/" "$work/workspace/dart_shell/"
+rsync -aL "$ROOT/protocol/generated/dart/" "$work/workspace/protocol/generated/dart/"
+# Relax only the disposable shell copy for an exact cross-version candidate.
+python3 - "$work/workspace/dart_shell/pubspec.yaml" <<'PY'
+from pathlib import Path
+import sys
+p = Path(sys.argv[1])
+text = p.read_text()
+old = '  flutter: 3.44.7\n'
+if old not in text:
+    raise SystemExit('expected the committed Flutter 3.44.7 constraint')
+p.write_text(text.replace(old, '  flutter: ">=3.44.7 <4.0.0"\n', 1))
+PY
+jobs="${DENIAL_BUILD_JOBS:-$(($(nproc) > 2 ? $(nproc) - 2 : 1))}"
+(
+    cd "$work/workspace/dart_shell"
+    "$flutter" "${engine_args[@]}" pub get
+    "$flutter" "${engine_args[@]}" assemble --resource-pool-size="$jobs" --output="$work/assembly" \
+        -dTargetFile=test/support/borrowed_glass_probe.dart -dBuildMode=release \
+        -dTargetPlatform=linux-x64 -dDartObfuscation=false -dTrackWidgetCreation=false \
+        -dTreeShakeIcons=false release_bundle_linux-x64_assets
+)
+CARGO_TARGET_DIR="${DENIAL_BORROWED_GLES_RUST_TARGET:-${XDG_CACHE_HOME:-$HOME/.cache}/denial/borrowed-gles-rust}" \
+    cargo build --locked --offline --manifest-path "$ROOT/tools/flutter-borrowed-gles-probe/Cargo.toml" --jobs "$jobs"
+probe="${DENIAL_BORROWED_GLES_RUST_TARGET:-${XDG_CACHE_HOME:-$HOME/.cache}/denial/borrowed-gles-rust}/debug/denial-borrowed-glass-probe"
+engine_sha="$(sha256sum "$output/libflutter_engine.so" | cut -d' ' -f1)"
+unset DISPLAY WAYLAND_DISPLAY
+export LIBGL_ALWAYS_SOFTWARE=1 EGL_PLATFORM=surfaceless GALLIUM_DRIVER=softpipe PROBE_DEPTH=0
+# Explicitly isolate the old synthetic profiles from caller scene selection.
+export PROBE_SMALL_GLASS=false
+for prior in false true; do
+    export PROBE_PRIOR="$prior"
+    export PROBE_GLASS=false PROBE_BLUR=0
+    "$probe" "$work/assembly" "$output"
+    export PROBE_GLASS=true
+    for blur in 0 2 12 30; do
+        export PROBE_BLUR="$blur"
+        printf '\nNumeric borrowed-FBO regression: blur=%s prior=%s\n' "$blur" "$prior"
+        "$probe" "$work/assembly" "$output"
+    done
+done
+printf '\nNumeric borrowed-FBO regression: small MacosGlass (light, frost=0.5)\n'
+export PROBE_SMALL_GLASS=true
+"$probe" "$work/assembly" "$output"
+python3 "$helper" validate-sources "$lock" "$DENIAL_FLUTTER_SOURCE_ROOT" "$DENIAL_SKIA_SOURCE_ROOT" > "$work/inputs-after.json"
+cmp -s "$work/inputs.json" "$work/inputs-after.json" || fail 'source inputs changed during the test'
+[[ "$(sha256sum "$output/libflutter_engine.so" | cut -d' ' -f1)" == "$engine_sha" ]] || fail 'engine changed during the test'
+printf '\nPassed all borrowed-GLES numeric cases. Engine SHA-256: %s\n' "$engine_sha"

@@ -1,0 +1,332 @@
+#!/usr/bin/env python3
+"""Headless regression tests for cross-version engine experiment safety gates."""
+
+import hashlib
+import importlib.util
+import json
+import os
+import subprocess
+import sys
+import tempfile
+import unittest
+from pathlib import Path
+
+
+ROOT = Path(__file__).resolve().parent.parent
+sys.dont_write_bytecode = True
+spec = importlib.util.spec_from_file_location(
+    "engine_test_metadata", ROOT / "tools/lib/denial-engine-test-metadata.py"
+)
+metadata = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(metadata)
+
+
+def run(*args, cwd=None, env=None):
+    return subprocess.check_output(args, cwd=cwd, env=env, text=True, stderr=subprocess.PIPE).strip()
+
+
+def initialize(root):
+    root.mkdir(parents=True)
+    run("git", "init", "--quiet", str(root))
+    run("git", "-C", str(root), "config", "user.name", "Doctor Logix")
+    run("git", "-C", str(root), "config", "user.email", "doctor.logix@gmail.com")
+    (root / "fixture").write_text(f"{root.name} upstream\n")
+    return commit(root)
+
+
+def commit(root):
+    run("git", "-C", str(root), "add", ".")
+    run("git", "-C", str(root), "commit", "--quiet", "-m", "Test fixture")
+    return run("git", "-C", str(root), "rev-parse", "HEAD")
+
+
+class SourceGateTests(unittest.TestCase):
+    def setUp(self):
+        self.temporary = tempfile.TemporaryDirectory(prefix="denial-engine-test.")
+        self.root = Path(self.temporary.name)
+        self.flutter = self.root / "flutter"
+        self.skia = self.root / "skia"
+        skia_upstream = initialize(self.skia)
+        (self.skia / "fixture").write_text("Denial Skia changes\n")
+        skia_revision = commit(self.skia)
+        initialize(self.flutter)
+        (self.flutter / ".gitignore").write_text("/engine/\n/bin/cache/\n")
+        nested = self.flutter / "engine/src/flutter/third_party"
+        depot_revision = initialize(nested / "depot_tools")
+        self.dart_revision = initialize(nested / "dart")
+        (nested / "skia").symlink_to(self.skia, target_is_directory=True)
+        self.deps = (
+            "vars = {\n"
+            f"  'skia_revision': '{skia_upstream}',\n"
+            f"  'dart_revision': '{self.dart_revision}',\n"
+            "  'chromium_git': 'https://chromium.googlesource.com',\n"
+            "}\n"
+            "deps = {\n"
+            "  'engine/src/flutter/third_party/depot_tools':\n"
+            "    Var('chromium_git') + '/chromium/tools/depot_tools.git@'"
+            f" + '{depot_revision}',\n"
+            "}\n"
+        )
+        (self.flutter / "DEPS").write_text(self.deps)
+        engine_file = self.flutter / "bin/internal/engine.version"
+        engine_file.parent.mkdir(parents=True)
+        engine_file.write_text("a" * 40 + "\n")
+        header = self.flutter / "engine/src/flutter/shell/platform/embedder/embedder.h"
+        header.parent.mkdir(parents=True)
+        header.write_text("// upstream public embedder ABI fixture\n")
+        run("git", "-C", str(self.flutter), "add", "--force", str(header))
+        flutter_upstream = commit(self.flutter)
+        (self.flutter / "DEPS").write_text(self.deps.replace(skia_upstream, skia_revision))
+        header.write_text("// Denial embedder ABI fixture\n")
+        run("git", "-C", str(self.flutter), "add", "--force", str(header))
+        flutter_revision = commit(self.flutter)
+        self.lock = {
+            "schema_version": 1,
+            "flutter": {
+                "repository": "https://github.com/denialwm/flutter.git",
+                "branch": "denial/new-stable",
+                "revision": flutter_revision,
+                "upstream_revision": flutter_upstream,
+            },
+            "skia": {
+                "repository": "https://github.com/denialwm/skia.git",
+                "branch": "denial/new-stable",
+                "revision": skia_revision,
+                "upstream_revision": skia_upstream,
+            },
+            "depot_tools": {
+                "repository": "https://chromium.googlesource.com/chromium/tools/depot_tools.git",
+                "revision": depot_revision,
+            },
+        }
+        self.lock_path = self.root / "candidate.json"
+
+    def tearDown(self):
+        self.temporary.cleanup()
+
+    def validate(self):
+        self.lock_path.write_text(json.dumps(self.lock))
+        return metadata.validate_sources(self.lock_path, self.flutter, self.skia)
+
+    def advance_flutter(self):
+        self.lock["flutter"]["revision"] = commit(self.flutter)
+
+    def test_precise_clean_pair_accepts_arbitrary_generation(self):
+        output = self.validate()
+        self.assertEqual(output["sources"], self.lock)
+        self.assertEqual(output["engine_artifact_revision"], "a" * 40)
+        self.assertEqual(output["dart_revision"], self.dart_revision)
+
+    def test_dirty_flutter_rejected(self):
+        (self.flutter / "DEPS").write_text("modified\n")
+        with self.assertRaisesRegex(ValueError, "dirty"):
+            self.validate()
+
+    def test_untracked_skia_rejected(self):
+        (self.skia / "not-committed").write_text("change\n")
+        with self.assertRaisesRegex(ValueError, "dirty"):
+            self.validate()
+
+    def test_revision_mismatch_rejected(self):
+        self.lock["flutter"]["revision"] = self.lock["flutter"]["upstream_revision"]
+        with self.assertRaisesRegex(ValueError, "HEAD"):
+            self.validate()
+
+    def test_nested_skia_wrong_pair_rejected(self):
+        nested = self.flutter / "engine/src/flutter/third_party/skia"
+        nested.unlink()
+        nested.symlink_to(self.flutter)
+        with self.assertRaisesRegex(ValueError, "paired root"):
+            self.validate()
+
+    def test_engine_artifact_mismatch_rejected(self):
+        (self.flutter / "bin/internal/engine.version").write_text("b" * 40 + "\n")
+        self.advance_flutter()
+        with self.assertRaisesRegex(ValueError, "engine.version"):
+            self.validate()
+
+    def test_fork_deps_skia_mismatch_rejected(self):
+        (self.flutter / "DEPS").write_text(self.deps)
+        self.advance_flutter()
+        with self.assertRaisesRegex(ValueError, "DEPS Skia"):
+            self.validate()
+
+    def test_wrong_upstream_skia_rejected(self):
+        self.lock["skia"]["upstream_revision"] = self.lock["skia"]["revision"]
+        with self.assertRaisesRegex(ValueError, "upstream base"):
+            self.validate()
+
+    def test_unsynchronized_dart_rejected(self):
+        dart = self.flutter / "engine/src/flutter/third_party/dart"
+        (dart / "fixture").write_text("different Dart revision\n")
+        commit(dart)
+        with self.assertRaisesRegex(ValueError, "HEAD"):
+            self.validate()
+
+    def test_dart_fork_cannot_reuse_official_engine_artifact(self):
+        deps = (self.flutter / "DEPS").read_text()
+        (self.flutter / "DEPS").write_text(deps.replace(self.dart_revision, "c" * 40))
+        self.advance_flutter()
+        with self.assertRaisesRegex(ValueError, "Dart revision differs"):
+            self.validate()
+
+    def test_unknown_lock_fields_rejected(self):
+        self.lock["flutter"]["version"] = "made-up-version"
+        with self.assertRaisesRegex(ValueError, "source-lock entry"):
+            self.validate()
+
+    def test_duplicate_json_fields_rejected(self):
+        self.lock_path.write_text('{"schema_version": 1, "schema_version": 1}')
+        with self.assertRaisesRegex(ValueError, "duplicate"):
+            metadata.read_json(self.lock_path)
+
+    def test_legacy_fast_path_rejects_changed_dart(self):
+        upstream = self.lock["flutter"]["upstream_revision"]
+        metadata.legacy_compatible(self.flutter, upstream)
+        current_deps = (self.flutter / "DEPS").read_text()
+        (self.flutter / "DEPS").write_text(current_deps.replace(self.dart_revision, "c" * 40))
+        with self.assertRaisesRegex(ValueError, "rebuilt AOT"):
+            metadata.legacy_compatible(self.flutter, upstream)
+
+    def test_candidate_bindings_verify_all_revision_and_header_stamps(self):
+        inputs = self.validate()
+        header = self.flutter / "engine/src/flutter/shell/platform/embedder/embedder.h"
+        bindings = self.root / "sys.rs"
+        bindings.write_text(
+            f'// Flutter engine revision: {inputs["engine_artifact_revision"]}\n'
+            f'// Flutter source revision: {inputs["sources"]["flutter"]["upstream_revision"]}\n'
+            f'// Source embedder.h SHA-256: {metadata.sha256(header)}\n'
+        )
+        self.assertEqual(metadata.validate_bindings(self.flutter, inputs, bindings), metadata.sha256(bindings))
+        bindings.write_text(bindings.read_text().replace(metadata.sha256(header), "0" * 64))
+        with self.assertRaisesRegex(ValueError, "bindings do not match"):
+            metadata.validate_bindings(self.flutter, inputs, bindings)
+        bindings.write_text(
+            f'// Flutter engine revision: {inputs["engine_artifact_revision"]}\n'
+            f'// Flutter source revision: {inputs["sources"]["flutter"]["upstream_revision"]}\n'
+            f'// Source embedder.h SHA-256: {metadata.sha256(header)}\n'
+        )
+        bindings.write_text(bindings.read_text().replace(inputs["engine_artifact_revision"], "b" * 40))
+        with self.assertRaisesRegex(ValueError, "bindings do not match"):
+            metadata.validate_bindings(self.flutter, inputs, bindings)
+
+
+class BundleGateTests(unittest.TestCase):
+    def setUp(self):
+        self.temporary = tempfile.TemporaryDirectory(prefix="denial-engine-bundle-test.")
+        self.store = Path(self.temporary.name)
+        self.artifact = self.store / "candidate"
+        self.bundle = self.artifact / "bundle"
+        for name in ("lib/libflutter_engine.so", "lib/libapp.so", "data/icudtl.dat", "data/flutter_assets/example"):
+            path = self.bundle / name
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(name)
+        self.manifest = {
+            "schema_version": 1,
+            "architecture": "linux-x64" if os.uname().machine == "x86_64" else "linux-arm64",
+            "bundle_sha256": metadata.bundle_hashes(self.bundle),
+        }
+        candidate_binary = self.artifact / "bin/deniald"
+        candidate_binary.parent.mkdir()
+        candidate_binary.write_text("Candidate compositor test fixture; never executed\n")
+        candidate_binary.chmod(0o755)
+        bindings = self.artifact / "abi/sys.rs"
+        bindings.parent.mkdir()
+        bindings.write_text("Candidate ABI test fixture\n")
+        self.manifest["staged_sha256"] = {
+            "bin/deniald": metadata.sha256(candidate_binary),
+            "abi/sys.rs": metadata.sha256(bindings),
+        }
+        self.manifest_path = self.artifact / "manifest.json"
+        self.manifest_path.write_text(json.dumps(self.manifest))
+        engine_sha = self.manifest["bundle_sha256"]["lib/libflutter_engine.so"]
+        (self.artifact / "libflutter_engine.so.sha256").write_text(engine_sha + "  libflutter_engine.so\n")
+        (self.store / "current").symlink_to("candidate")
+
+    def tearDown(self):
+        self.temporary.cleanup()
+
+    def pc(self, command):
+        environment = os.environ.copy()
+        environment["DENIAL_PC_ENGINE_TEST_STORE"] = str(self.store)
+        return subprocess.run(
+            [str(ROOT / "tools/denial-pc"), command], env=environment,
+            text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+        )
+
+    def mark_checked(self):
+        checks = self.store / "checks"
+        checks.mkdir(exist_ok=True)
+        (checks / "candidate.abi-checked").write_text(metadata.sha256(self.manifest_path) + "\n")
+
+    def test_candidate_cannot_arm_without_headless_gate(self):
+        result = self.pc("engine-test-arm")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("has not passed engine-test-check", result.stderr)
+        self.assertFalse((self.store / "next-session").exists())
+
+    def test_checked_candidate_arms_only_one_shot_flag_and_can_cancel(self):
+        self.mark_checked()
+        result = self.pc("engine-test-arm")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual((self.store / "next-session").resolve(), self.artifact)
+        result = self.pc("engine-test-cancel")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertFalse((self.store / "next-session").exists())
+
+    def test_aot_tampering_prevents_arm(self):
+        self.mark_checked()
+        (self.bundle / "lib/libapp.so").write_text("old AOT snapshot")
+        result = self.pc("engine-test-arm")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("differ from the candidate manifest", result.stderr)
+
+    def test_extra_asset_prevents_arm(self):
+        self.mark_checked()
+        (self.bundle / "data/flutter_assets/stale").write_text("stale shader")
+        result = self.pc("engine-test-arm")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("differ from the candidate manifest", result.stderr)
+
+    def test_candidate_compositor_tampering_prevents_arm(self):
+        self.mark_checked()
+        (self.artifact / "bin/deniald").write_text("old compositor binary")
+        result = self.pc("engine-test-arm")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("staged candidate file differs", result.stderr)
+
+    def test_staged_binding_tampering_prevents_arm(self):
+        self.mark_checked()
+        (self.artifact / "abi/sys.rs").write_text("old ABI bindings")
+        result = self.pc("engine-test-arm")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("staged candidate file differs", result.stderr)
+
+    def test_symlink_bundle_dependency_rejected(self):
+        asset = self.bundle / "data/flutter_assets/example"
+        asset.unlink()
+        asset.symlink_to(self.bundle / "data/icudtl.dat")
+        with self.assertRaisesRegex(ValueError, "symlink"):
+            metadata.bundle_hashes(self.bundle)
+
+    def test_manifest_change_invalidates_prior_gate(self):
+        self.mark_checked()
+        self.manifest["additional_validation"] = "changed after the ABI check"
+        self.manifest_path.write_text(json.dumps(self.manifest))
+        result = self.pc("engine-test-arm")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("has not passed engine-test-check", result.stderr)
+
+    def test_bundle_id_distinguishes_shell_rebuilds_with_same_engine(self):
+        old_hashes = metadata.bundle_hashes(self.bundle)
+        (self.bundle / "lib/libapp.so").write_text("new shell build")
+        new_hashes = metadata.bundle_hashes(self.bundle)
+        self.assertEqual(old_hashes["lib/libflutter_engine.so"], new_hashes["lib/libflutter_engine.so"])
+        self.assertNotEqual(
+            hashlib.sha256(json.dumps(old_hashes, sort_keys=True).encode()).hexdigest(),
+            hashlib.sha256(json.dumps(new_hashes, sort_keys=True).encode()).hexdigest(),
+        )
+
+
+if __name__ == "__main__":
+    unittest.main(verbosity=2)

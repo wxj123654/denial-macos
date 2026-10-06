@@ -40,3 +40,5 @@
 /tools/__pycache__/
 /prebuilt/flutter-engine/*/libflutter_engine.so.before-*
 MOTO_WIFI_DEPLOY.md
+
+/tools/flutter-borrowed-gles-probe/target/

@@ -89,6 +89,8 @@ ENGINE_TEST_CURRENT="$ENGINE_TEST_STORE/current"
 ENGINE_TEST_NEXT="$ENGINE_TEST_STORE/next-session"
 ENGINE_TEST_SOURCE_ROOT="${DENIAL_FLUTTER_SOURCE_ROOT:-$CANONICAL_FLUTTER_SOURCE}"
 ENGINE_TEST_NINJA_OUT="${DENIAL_PC_ENGINE_TEST_NINJA_OUT:-$ENGINE_TEST_SOURCE_ROOT/engine/src/out/denial_host_release}"
+# shellcheck source=lib/denial-engine-test.sh
+source "$SCRIPT_DIR/lib/denial-engine-test.sh"
 SESSION_ENGINE_SHA256=""
 BINARY="${DENIAL_PC_BINARY:-$RUST_TARGET/release/deniald}"
 CONTROL_BINARY="${DENIAL_PC_CONTROL_BINARY:-$RUST_TARGET/release/denialctl}"
@@ -165,7 +167,9 @@ Commands:
   flutter-test      Run lock-matched Flutter shell tests; forwards remaining arguments
   test              Run compositor and lock-matched Flutter shell tests
   session           Run the real DRM session (normally invoked by a display manager)
-  engine-test-build Build only the local release engine and stage an isolated test bundle
+  engine-test-build [--source-lock CANDIDATE_JSON --compositor CANDIDATE_BINARY]
+                    Build a same-version engine experiment; with an exact candidate
+                    lock, rebuild matching Dart/AOT/assets in an isolated bundle
   engine-test-check Verify the staged engine ABI and AOT bundle without starting Denial
   engine-test-arm   Use the staged engine test for the next development login only
   engine-test-cancel
@@ -455,6 +459,14 @@ select_engine_test_root() {
     require_pinned_engine
     require_file "$BUNDLE/data/icudtl.dat"
     require_file "$BUNDLE/lib/libapp.so"
+    if [[ -f "$test_root/manifest.json" ]]; then
+        python3 "$SCRIPT_DIR/lib/denial-engine-test-metadata.py" \
+            verify-bundle "$BUNDLE" "$test_root/manifest.json"
+        [[ "$(jq -er '.architecture' "$test_root/manifest.json")" == "$DENIAL_FLUTTER_PLATFORM" ]] \
+            || die 'candidate bundle targets a different native architecture'
+        BINARY="$test_root/bin/deniald"
+        [[ -x "$BINARY" ]] || die 'staged candidate compositor is not executable'
+    fi
 }
 
 select_engine_test() {
@@ -464,6 +476,28 @@ select_engine_test() {
 }
 
 stage_engine_test() {
+    if (($#)); then
+        local source_lock='' compositor=''
+        while (($#)); do
+            case "$1" in
+                --source-lock)
+                    [[ $# -ge 2 && -z "$source_lock" ]] || die 'provide exactly one candidate source lock'
+                    source_lock="$2"
+                    shift 2
+                    ;;
+                --compositor)
+                    [[ $# -ge 2 && -z "$compositor" ]] || die 'provide exactly one candidate compositor binary'
+                    compositor="$2"
+                    shift 2
+                    ;;
+                *) die "unknown engine-test-build option: $1" ;;
+            esac
+        done
+        [[ -n "$source_lock" && -n "$compositor" ]] \
+            || die 'usage: engine-test-build --source-lock CANDIDATE_JSON --compositor CANDIDATE_BINARY'
+        stage_engine_test_candidate "$source_lock" "$compositor"
+        return
+    fi
     require_pinned_engine
     require_file "$BUNDLE/data/icudtl.dat"
     require_file "$BUNDLE/lib/libapp.so"
@@ -471,6 +505,10 @@ stage_engine_test() {
         || die "engine-test Flutter checkout not found: $ENGINE_TEST_SOURCE_ROOT"
     [[ -z "$(git -C "$ENGINE_TEST_SOURCE_ROOT" status --porcelain)" ]] \
         || die "engine-test Flutter checkout must be clean before building: $ENGINE_TEST_SOURCE_ROOT"
+    # The fast path copies a known-good AOT ELF. Never use it across an
+    # upstream engine/Dart upgrade: that requires a newly assembled bundle.
+    python3 "$SCRIPT_DIR/lib/denial-engine-test-metadata.py" \
+        legacy-compatible "$ENGINE_TEST_SOURCE_ROOT" "$FLUTTER_UPSTREAM_REVISION"
     require_file "$ENGINE_TEST_NINJA_OUT/args.gn"
 
     local revision engine_source engine_sha artifact_id final_dir stage link
@@ -889,11 +927,26 @@ run_session() {
 
 run_engine_test_session() {
     select_engine_test
+    require_engine_test_checked
     run_session
+}
+
+require_engine_test_checked() {
+    local test_root="${BUNDLE%/bundle}"
+    if [[ -f "$test_root/manifest.json" ]]; then
+        local checked="$ENGINE_TEST_STORE/checks/${test_root##*/}.abi-checked"
+        [[ -f "$checked" && "$(< "$checked")" == "$(file_sha256 "$test_root/manifest.json")" ]] \
+            || die 'cross-version candidate has not passed engine-test-check'
+    fi
 }
 
 check_engine_test() {
     select_engine_test
+    local test_root="${BUNDLE%/bundle}"
+    if [[ -f "$test_root/manifest.json" ]]; then
+        [[ "$(file_sha256 "$EMBEDDER_BINDINGS")" == "$(jq -er '.staged_sha256["abi/sys.rs"]' "$test_root/manifest.json")" ]] \
+            || die 'current Rust embedder bindings differ from the staged candidate; restore candidate bindings before checking'
+    fi
     (
         cd -- "$COMPOSITOR_ROOT"
         DENIAL_TEST_FLUTTER_BUNDLE="$BUNDLE" \
@@ -903,6 +956,13 @@ check_engine_test() {
             --test bundle_abi -- --ignored --exact \
             loads_the_bundled_flutter_engine_abi
     )
+    if [[ -f "$test_root/manifest.json" ]]; then
+        # This marker lives outside the immutable artifact. A manifest change
+        # invalidates it, so a candidate cannot be armed before its ABI gate.
+        mkdir -p -- "$ENGINE_TEST_STORE/checks"
+        printf '%s\n' "$(file_sha256 "$test_root/manifest.json")" \
+            > "$ENGINE_TEST_STORE/checks/${test_root##*/}.abi-checked"
+    fi
     printf 'Verified staged engine ABI and AOT data (sha256 %s).\n' \
         "$SESSION_ENGINE_SHA256"
 }
@@ -913,6 +973,7 @@ arm_engine_test() {
     local test_root artifact_id link
     test_root="${BUNDLE%/bundle}"
     artifact_id="${test_root##*/}"
+    require_engine_test_checked
     link="$ENGINE_TEST_STORE/.next-session.$$"
     ln -s -- "$artifact_id" "$link"
     mv -Tf -- "$link" "$ENGINE_TEST_NEXT"
@@ -943,6 +1004,7 @@ run_display_manager_session() {
     [[ -n "$test_root" ]] \
         || die "the one-shot engine-test target was missing; the flag was cleared, so retrying starts the known-good session"
     select_engine_test_root "$test_root"
+    require_engine_test_checked
     printf 'Starting the one-shot isolated engine test (%.12s...).\n' \
         "$SESSION_ENGINE_SHA256"
     run_session
@@ -1367,7 +1429,10 @@ case "${1:-}" in
         ;;
     test) test_all ;;
     session) run_display_manager_session ;;
-    engine-test-build) stage_engine_test ;;
+    engine-test-build)
+        shift
+        stage_engine_test "$@"
+        ;;
     engine-test-check) check_engine_test ;;
     engine-test-arm) arm_engine_test ;;
     engine-test-cancel) cancel_engine_test ;;
