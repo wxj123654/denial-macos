@@ -53,7 +53,13 @@ void main() {
       r'vec2 glassUv\(vec2 frag\)\s*\{([^}]+)\}',
     ).firstMatch(core)!.group(1)!;
     expect(body, contains('(frag + uOrigin) / uTextureSize'));
-    expect(body, contains('IMPELLER_TARGET_OPENGLES'));
+    expect(
+      body,
+      contains(
+        'defined(IMPELLER_TARGET_OPENGLES) && '
+        '!defined(IMPELLER_OPENGLES_UNFLIPPED_DEPRECATED)',
+      ),
+    );
     expect(body, contains('uv.y = 1.0 - uv.y;'));
     expect(body, isNot(contains('/ uView')));
   });
@@ -325,8 +331,7 @@ void main() {
         // A flipped root draws the widget at height - rect in output rows;
         // scan those rows so the whole outline, including the top edge, is
         // compared against the ideal capsule.
-        final yStart =
-            (flipRoot ? height - rect.bottom : rect.top).floor() - 2;
+        final yStart = (flipRoot ? height - rect.bottom : rect.top).floor() - 2;
         final yEnd = (flipRoot ? height - rect.top : rect.bottom).ceil() + 2;
         for (var y = yStart; y < yEnd; y++) {
           for (var x = rect.left.floor() - 2; x < rect.right.ceil() + 2; x++) {
@@ -382,7 +387,9 @@ void main() {
       final shader = LiquidGlassPrograms.metaball!.fragmentShader();
       const optics = LiquidGlassOptics(
         blurSigma: 0,
-        tint: Color(0x00000000),
+        // Measure coverage in red over black. Final framebuffer alpha is
+        // opaque on GLES because it includes the backdrop, not just glass.
+        tint: Color(0xffffffff),
         saturation: 1,
         specular: 0,
       );
@@ -436,14 +443,18 @@ void main() {
       child.dispose();
       shader.dispose();
 
-      int alphaAt(int x, int y) => bytes.getUint8((y * width + x) * 4 + 3);
-      // Output row that shows a given scene row under the flipped root.
-      int outputRow(double sceneRow) => (height - sceneRow).round();
+      int coverageAt(int x, int y) => bytes.getUint8((y * width + x) * 4);
+      // Choose pixel-centre pairs on opposite sides of the reflected
+      // centre. Rounding both integer row boundaries up shifts both samples
+      // by half a pixel and exaggerates differences at the capsule's tip.
+      int outputRow(double sceneRow) => sceneRow < rect.center.dy
+          ? (height - sceneRow).floor()
+          : (height - sceneRow).ceil() - 1;
       (int?, int?) span(int y) {
         int? first;
         int? last;
         for (var x = rect.left.floor() - 3; x < rect.right.ceil() + 3; x++) {
-          if (alphaAt(x, y) > 120) {
+          if (coverageAt(x, y) > 120) {
             last = x;
             first ??= x;
           }
@@ -482,20 +493,20 @@ void main() {
       expect(issues.take(6).join('; '), isEmpty, reason: 'mirror mismatches');
 
       // The anti-aliased flat edges must also match after mirroring.
-      int rowAlphaSum(int y) {
+      int rowCoverageSum(int y) {
         var sum = 0;
         for (var x = rect.left.floor(); x < rect.right.ceil(); x++) {
-          sum += alphaAt(x, y);
+          sum += coverageAt(x, y);
         }
         return sum;
       }
 
-      final topSum = rowAlphaSum(outputRow(rect.top + 1.5));
-      final bottomSum = rowAlphaSum(outputRow(rect.bottom - 1.5));
+      final topSum = rowCoverageSum(outputRow(rect.top + 1.5));
+      final bottomSum = rowCoverageSum(outputRow(rect.bottom - 1.5));
       expect(
         (topSum - bottomSum).abs() / math.max(topSum, bottomSum),
         lessThan(0.25),
-        reason: 'edge alpha top=$topSum bottom=$bottomSum',
+        reason: 'edge coverage top=$topSum bottom=$bottomSum',
       );
     });
   });
@@ -517,7 +528,9 @@ void main() {
         logical.height * dpr,
       );
       const sectors = 16;
-      Future<(List<double>, List<int>)> meanLift(LiquidGlassOptics optics) async {
+      Future<(List<double>, List<int>)> meanLift(
+        LiquidGlassOptics optics,
+      ) async {
         final shader = LiquidGlassPrograms.metaball!.fragmentShader();
         final origin = logical.topLeft * dpr;
         var index = optics.apply(shader, logical.size, dpr, 0, origin: origin);
@@ -606,7 +619,9 @@ void main() {
         tint: Color(0x00000000),
         saturation: 1,
       );
-      final (flatMeans, flatCounts) = await meanLift(base.copyWith(specular: 0));
+      final (flatMeans, flatCounts) = await meanLift(
+        base.copyWith(specular: 0),
+      );
       final (litMeans, _) = await meanLift(base.copyWith(specular: 1));
       final rim = [
         for (var i = 0; i < sectors; i++) litMeans[i] - flatMeans[i],
@@ -657,7 +672,9 @@ void main() {
       ),
     );
     expect(tester.getSize(find.byType(LiquidGlassLens)), const Size(120, 32));
-    expect(tester.layers.whereType<BackdropFilterLayer>(), hasLength(1));
+    // The pre-blur lives in its own sibling backdrop layer beneath the shader
+    // layer so the shader keeps exact view-space coordinates.
+    expect(tester.layers.whereType<BackdropFilterLayer>(), hasLength(2));
     expect(tester.takeException(), isNull);
   });
 

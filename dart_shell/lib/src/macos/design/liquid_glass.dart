@@ -187,21 +187,41 @@ class LiquidGlassOptics {
 
   /// The backdrop filter, or null when the engine has no shader image
   /// filters (Skia), so callers can fall back to frosted glass.
+  ///
+  /// The pre-blur is deliberately NOT composed in here: a compose filter makes
+  /// the engine hand the shader a padded/re-rasterized input whose size and
+  /// origin no longer match the view-space uniforms, which shrinks and shifts
+  /// the glass shape by up to 2x sigma. Use [withBlur] to blur in a separate
+  /// backdrop layer underneath instead.
   ui.ImageFilter? filterFor(ui.FragmentShader shader, double scale) {
-    final ui.ImageFilter shaded;
     try {
-      shaded = ui.ImageFilter.shader(shader);
+      return ui.ImageFilter.shader(shader);
     } on UnsupportedError {
       return null;
     }
-    if (blurSigma <= 0) return shaded;
-    return ui.ImageFilter.compose(
-      outer: shaded,
-      inner: ui.ImageFilter.blur(
-        sigmaX: blurSigma,
-        sigmaY: blurSigma,
-        tileMode: TileMode.clamp,
-      ),
+  }
+
+  /// Puts the pre-blur in a separate backdrop layer painted *beneath* [child]
+  /// (the shader backdrop), so the shader samples the already blurred
+  /// backdrop at exact view coordinates. The two layers are siblings: a
+  /// nested backdrop would not see the blurred result.
+  Widget withBlur(Widget child) {
+    if (blurSigma <= 0) return child;
+    return Stack(
+      fit: StackFit.passthrough,
+      children: [
+        Positioned.fill(
+          child: BackdropFilter(
+            filter: ui.ImageFilter.blur(
+              sigmaX: blurSigma,
+              sigmaY: blurSigma,
+              tileMode: TileMode.clamp,
+            ),
+            child: const SizedBox.expand(),
+          ),
+        ),
+        child,
+      ],
     );
   }
 }
@@ -289,14 +309,16 @@ class _LiquidGlassLensState extends State<LiquidGlassLens> {
         : Padding(padding: widget.padding!, child: widget.child);
     return ClipRRect(
       borderRadius: radius,
-      child: _GlassBackdrop(
-        scale: scale,
-        filterFor: (origin, size, scale) {
-          final optics = widget.optics.forSize(size);
-          optics.apply(shader, size, scale, widget.radius, origin: origin);
-          return optics.filterFor(shader, scale);
-        },
-        child: content,
+      child: widget.optics.withBlur(
+        _GlassBackdrop(
+          scale: scale,
+          filterFor: (origin, size, scale) {
+            final optics = widget.optics.forSize(size);
+            optics.apply(shader, size, scale, widget.radius, origin: origin);
+            return optics.filterFor(shader, scale);
+          },
+          child: content,
+        ),
       ),
     );
   }
@@ -318,9 +340,41 @@ class LiquidGlassBlend extends StatefulWidget {
     this.optics = const LiquidGlassOptics(),
     this.child,
     this.fallback,
-  }) : assert(shapes.length <= 4);
+  }) : assert(shapes.length <= 4),
+       surfaceRadius = null,
+       surfaceInset = 0;
+
+  /// One rounded-rectangle surface that follows this widget's own laid-out
+  /// size (not its parent's constraints), inset from the coverage boundary by
+  /// [inset] logical pixels (capped at a sixth of the short side).
+  const LiquidGlassBlend.surface({
+    super.key,
+    required double radius,
+    double inset = 3,
+    this.optics = const LiquidGlassOptics(),
+    this.child,
+    this.fallback,
+  }) : shapes = const [],
+       blend = 0,
+       roundness = 1,
+       surfaceRadius = radius,
+       surfaceInset = inset;
 
   final List<Rect> shapes;
+
+  /// When non-null, [shapes] and [roundness] are derived from the laid-out
+  /// size instead of being given.
+  final double? surfaceRadius;
+  final double surfaceInset;
+
+  /// The surface rectangle and corner roundness for a laid-out [size].
+  @visibleForTesting
+  static (Rect, double) surfaceShape(Size size, double radius, double inset) {
+    final slack = math.min(inset, size.shortestSide / 6);
+    final shape = (Offset.zero & size).deflate(slack);
+    final half = shape.shortestSide / 2;
+    return (shape, half <= 0 ? 0.0 : (radius / half).clamp(0.0, 1.0));
+  }
 
   /// Fusion distance in logical pixels.
   final double blend;
@@ -371,31 +425,44 @@ class _LiquidGlassBlendState extends State<LiquidGlassBlend> {
       return widget.fallback ?? widget.child ?? const SizedBox.shrink();
     }
     return ClipRect(
-      child: _GlassBackdrop(
-        scale: scale,
-        filterFor: (origin, size, scale) {
-          final shapeScale = scale * widget.optics.pixelScale;
-          var index = widget.optics.apply(
-            shader,
-            size,
-            scale,
-            0,
-            origin: origin,
-          );
-          for (var i = 0; i < 4; i++) {
-            final rect = i < widget.shapes.length ? widget.shapes[i] : null;
+      child: widget.optics.withBlur(
+        _GlassBackdrop(
+          scale: scale,
+          filterFor: (origin, size, scale) {
+            final shapeScale = scale * widget.optics.pixelScale;
+            var index = widget.optics.apply(
+              shader,
+              size,
+              scale,
+              0,
+              origin: origin,
+            );
+            final surfaceRadius = widget.surfaceRadius;
+            final (shapes, roundness) = surfaceRadius == null
+                ? (widget.shapes, widget.roundness)
+                : () {
+                    final (rect, round) = LiquidGlassBlend.surfaceShape(
+                      size,
+                      surfaceRadius,
+                      widget.surfaceInset,
+                    );
+                    return ([rect], round);
+                  }();
+            for (var i = 0; i < 4; i++) {
+              final rect = i < shapes.length ? shapes[i] : null;
+              shader
+                ..setFloat(index++, (rect?.center.dx ?? 0) * shapeScale)
+                ..setFloat(index++, (rect?.center.dy ?? 0) * shapeScale)
+                ..setFloat(index++, (rect?.width ?? 0) / 2 * shapeScale)
+                ..setFloat(index++, (rect?.height ?? 0) / 2 * shapeScale);
+            }
             shader
-              ..setFloat(index++, (rect?.center.dx ?? 0) * shapeScale)
-              ..setFloat(index++, (rect?.center.dy ?? 0) * shapeScale)
-              ..setFloat(index++, (rect?.width ?? 0) / 2 * shapeScale)
-              ..setFloat(index++, (rect?.height ?? 0) / 2 * shapeScale);
-          }
-          shader
-            ..setFloat(index++, widget.blend * shapeScale)
-            ..setFloat(index, widget.roundness);
-          return widget.optics.filterFor(shader, scale);
-        },
-        child: widget.child ?? const SizedBox.expand(),
+              ..setFloat(index++, widget.blend * shapeScale)
+              ..setFloat(index, roundness);
+            return widget.optics.filterFor(shader, scale);
+          },
+          child: widget.child ?? const SizedBox.expand(),
+        ),
       ),
     );
   }

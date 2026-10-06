@@ -133,6 +133,66 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  test('glass surface shape follows laid-out size and keeps its radius', () {
+    final (banner, bannerRound) = LiquidGlassBlend.surfaceShape(
+      const Size(340, 62),
+      22,
+      3,
+    );
+    expect(banner, const Rect.fromLTWH(3, 3, 334, 56));
+    expect(bannerRound, closeTo(22 / 28, 1e-9));
+    final (tiny, tinyRound) = LiquidGlassBlend.surfaceShape(
+      const Size(36, 36),
+      100,
+      3,
+    );
+    expect(tiny, const Rect.fromLTWH(3, 3, 30, 30));
+    expect(tinyRound, 1);
+    expect(LiquidGlassBlend.surfaceShape(Size.zero, 10, 3).$2, 0);
+  });
+
+  testWidgets('glass under oversized parent constraints keeps its own size', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1280, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await tester.runAsync(LiquidGlassPrograms.ensureLoaded);
+    await tester.pumpWidget(
+      Directionality(
+        textDirection: TextDirection.ltr,
+        child: MacosPaletteScope(
+          palette: MacosPalette.light,
+          child: const MacosGlassScope(
+            frost: 0.5,
+            refractive: true,
+            child: Stack(
+              children: [
+                Positioned(
+                  bottom: 100,
+                  right: 36,
+                  child: SizedBox(
+                    width: 340,
+                    child: MacosGlass(
+                      borderRadius: BorderRadius.all(Radius.circular(22)),
+                      child: SizedBox(height: 62),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+    final blend = find.byType(LiquidGlassBlend);
+    expect(blend, findsOneWidget);
+    expect(tester.getSize(blend), const Size(340, 62));
+    final widget = tester.widget<LiquidGlassBlend>(blend);
+    expect(widget.surfaceRadius, 22);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('fully frosted material disables refractive filters', (
     tester,
   ) async {

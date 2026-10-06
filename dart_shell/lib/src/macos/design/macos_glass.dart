@@ -149,28 +149,18 @@ class MacosGlass extends StatelessWidget {
         ui.lerpDouble(fill.a * 0.25, 0.95, materialFrost * materialFrost)!,
       );
       final frosted = surface;
-      surface = LayoutBuilder(
-        builder: (context, constraints) {
-          final size = constraints.biggest;
-          // The shader shape must stay off the layer's coverage boundary:
-          // the GLES negative-render-view pipeline can place the composited
-          // backdrop a couple of device pixels off the clip, flattening
-          // corners that touch the boundary (see AGENTS.md).
-          final slack = math.min(3.0, size.shortestSide / 6);
-          final shape = (Offset.zero & size).deflate(slack);
-          final roundness = (borderRadius.topLeft.x / (shape.shortestSide / 2))
-              .clamp(0.0, 1.0);
-          return LiquidGlassBlend(
-            shapes: [shape],
-            roundness: roundness,
-            optics: LiquidGlassOptics(
-              tint: base.withValues(alpha: glassAlpha),
-              blurSigma: nested ? 0 : math.min(blurSigma, 12) * materialFrost,
-            ),
-            fallback: frosted,
-            child: content,
-          );
-        },
+      // The shape follows the laid-out size, not the parent's constraints
+      // (an unbounded or oversized parent would otherwise define a shape
+      // much larger than the widget), and stays off the coverage boundary
+      // (see AGENTS.md).
+      surface = LiquidGlassBlend.surface(
+        radius: borderRadius.topLeft.x,
+        optics: LiquidGlassOptics(
+          tint: base.withValues(alpha: glassAlpha),
+          blurSigma: nested ? 0 : math.min(blurSigma, 12) * materialFrost,
+        ),
+        fallback: frosted,
+        child: content,
       );
     }
     return _InsideGlass(

@@ -47,7 +47,7 @@ float sdRRect(vec2 p, vec2 half_size, float r, out vec2 grad) {
 // FlutterFragCoord is a position in the filter input. Denial's physical
 // output canvas reflects Y before capturing that input. Undo the output
 // reflection for shape geometry; sampling maps back into input coordinates
-// and independently applies the GLES texture-origin correction.
+// and independently applies the legacy GLES texture-origin correction.
 vec2 glassFrag() {
   vec2 frag = FlutterFragCoord().xy;
   if (uRootYInverted > 0.5) frag.y = uTextureSize.y - frag.y;
@@ -58,7 +58,11 @@ vec2 glassUv(vec2 frag) {
   vec2 inset = vec2(0.5) / uTextureSize;
   vec2 uv = clamp((frag + uOrigin) / uTextureSize, inset, vec2(1.0) - inset);
   if (uRootYInverted > 0.5) uv.y = 1.0 - uv.y;
-#ifdef IMPELLER_TARGET_OPENGLES
+// Flutter <= 3.44 rendered GLES filter textures with a flipped origin.
+// Newer engines normalize owned filter textures and advertise the change
+// through this compatibility macro; flipping them again samples the wrong
+// rows (or transparent padding after blur).
+#if defined(IMPELLER_TARGET_OPENGLES) && !defined(IMPELLER_OPENGLES_UNFLIPPED_DEPRECATED)
   uv.y = 1.0 - uv.y;
 #endif
   return vec2(uv.x, uFlipY > 0.5 ? 1.0 - uv.y : uv.y);
